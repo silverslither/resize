@@ -12,6 +12,9 @@ import * as FilterFunctions from "./filters.js";
  * @returns {TypedArray} Destination image, in RGBA format, with the same type as source image.
  */
 export function sample(src, src_width, src_height, dst_width, dst_height) {
+    if (dst_width <= 0 || dst_height <= 0)
+        return new (Object.getPrototypeOf(src).constructor)();
+
     const x_factor = src_width / dst_width;
     const y_factor = src_height / dst_height;
 
@@ -171,6 +174,9 @@ function vscale(src, width, src_height, dst_height) {
  * @returns {Float64Array} Destination image, in RGBA format.
  */
 export function scale(src, src_width, src_height, dst_width, dst_height) {
+    if (dst_width <= 0 || dst_height <= 0)
+        return new Float64Array();
+
     if (dst_width === src_width) {
         if (dst_height === src_height)
             return src;
@@ -332,7 +338,11 @@ export const Filters = {
  * @returns {Float64Array} Destination image, in RGBA format.
  */
 export function resize(src, src_width, src_height, dst_width, dst_height, filter = 0) {
+    if (dst_width <= 0 || dst_height <= 0)
+        return new Float64Array();
+
     let filter_func, window, nop = false;
+
     switch (filter) {
         case Filters.NEAREST:
             return sample(src, src_width, src_height, dst_width, dst_height);

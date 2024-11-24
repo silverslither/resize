@@ -7,7 +7,7 @@ cd include
 git clone https://github.com/lvandeve/lodepng.git && mv lodepng/lodepng.cpp lodepng/lodepng.c
 cd ..
 
-CFLAGS="-std=c99 -c -O3 -mavx -Wall -Wextra -Wimplicit"
+CFLAGS="-std=c99 -c -O3 -mfma -mavx -Wall -Wextra -Wimplicit"
 
 $CC $CFLAGS -o lodepng.o include/lodepng/lodepng.c
 $CC $CFLAGS filters.c

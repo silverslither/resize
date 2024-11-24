@@ -26,6 +26,9 @@ static inline s32 max(s32 x, s32 y) {
 }
 
 double *sample(const double *src, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height) {
+    if (dst_width <= 0 || dst_height <= 0)
+        return NULL;
+
     const double x_factor = (double)src_width / dst_width;
     const double y_factor = (double)src_height / dst_height;
 
@@ -176,6 +179,9 @@ static double *vscale(const double *src, s32 width, s32 src_height, s32 dst_heig
 }
 
 double *scale(double *src, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height) {
+    if (dst_width <= 0 || dst_height <= 0)
+        return NULL;
+
     if (dst_width == src_width) {
         if (dst_height == src_height)
             return src;
@@ -311,9 +317,13 @@ static double *vfilter(const double *src, s32 width, s32 src_height, s32 dst_hei
 }
 
 double *resize(double *src, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height, Filter filter) {
+    if (dst_width <= 0 || dst_height <= 0)
+        return NULL;
+
     double (*filter_func)(double);
     double window;
     int nop = 0;
+
     switch (filter) {
     case NEAREST:
         return sample(src, src_width, src_height, dst_width, dst_height);
