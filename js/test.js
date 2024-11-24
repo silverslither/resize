@@ -1,6 +1,6 @@
 // Copyright (c) 2024 silverslither.
 
-import { resize, FILTERS } from "./resize.js";
+import { resize, Filters } from "./resize.js";
 import { encode, decode } from "https://cdn.jsdelivr.net/npm/fast-png@6.2.0/+esm"
 
 main();
@@ -11,9 +11,9 @@ async function main() {
 
     const src = expandChannels(await getImage("in.png"));
     console.log(src);
-    const dst = resize(src.data, src.width, src.height, dst_width, dst_height, FILTERS.MITNET_SHARP);
+    const dst = resize(src.data, src.width, src.height, dst_width, dst_height, Filters.MITNET_SHARP);
 
-    writeFileSync("mine.png", encodeArray(dst, dst_width, dst_height));
+    writeFileSync("out.png", encodeArray(dst, dst_width, dst_height));
 }
 
 async function getImage(file) {

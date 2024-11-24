@@ -175,25 +175,25 @@ static double *vscale(const double *src, s32 width, s32 src_height, s32 dst_heig
     return dst;
 }
 
-double *scale(double *data, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height) {
+double *scale(double *src, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height) {
     if (dst_width == src_width) {
         if (dst_height == src_height)
-            return data;
-        return vscale(data, src_width, src_height, dst_height);
+            return src;
+        return vscale(src, src_width, src_height, dst_height);
     } else if (dst_height == src_height) {
-        return hscale(data, src_width, src_height, dst_width);
+        return hscale(src, src_width, src_height, dst_width);
     }
 
     const double x_factor = (double)dst_width / src_width;
     const double y_factor = (double)dst_height / src_height;
 
     if (x_factor >= y_factor) {
-        double *temp = vscale(data, src_width, src_height, dst_height);
+        double *temp = vscale(src, src_width, src_height, dst_height);
         double *ret = hscale(temp, src_width, dst_height, dst_width);
         free(temp);
         return ret;
     } else {
-        double *temp = hscale(data, src_width, src_height, dst_width);
+        double *temp = hscale(src, src_width, src_height, dst_width);
         double *ret = vscale(temp, dst_width, src_height, dst_height);
         free(temp);
         return ret;
@@ -310,63 +310,63 @@ static double *vfilter(const double *src, s32 width, s32 src_height, s32 dst_hei
     return dst;
 }
 
-double *resize(double *data, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height, FILTER filter_name) {
-    double (*filter)(double);
+double *resize(double *src, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height, Filter filter) {
+    double (*filter_func)(double);
     double window;
     int nop = 0;
-    switch (filter_name) {
+    switch (filter) {
     case NEAREST:
-        return sample(data, src_width, src_height, dst_width, dst_height);
+        return sample(src, src_width, src_height, dst_width, dst_height);
     case AREA:
-        return scale(data, src_width, src_height, dst_width, dst_height);
+        return scale(src, src_width, src_height, dst_width, dst_height);
     case TRIANGLE:
-        filter = Triangle;
+        filter_func = Triangle;
         window = 1.0;
         nop = 1;
         break;
     case HERMITE:
-        filter = Hermite;
+        filter_func = Hermite;
         window = 1.0;
         nop = 1;
         break;
     case B_SPLINE_2:
-        filter = BSpline2;
+        filter_func = BSpline2;
         window = 1.5;
         break;
     case B_SPLINE_3:
-        filter = BSpline3;
+        filter_func = BSpline3;
         window = 2.0;
         break;
     case KEYS_HALF:
-        filter = KeysHalf;
+        filter_func = KeysHalf;
         window = 2.0;
         break;
     default:
     case MITNET:
-        filter = MitNet;
+        filter_func = MitNet;
         window = 2.0;
         break;
     case MITNET_SHARP:
-        filter = MitNetSharp;
+        filter_func = MitNetSharp;
         window = 2.0;
         break;
     case CATROM:
-        filter = CatRom;
+        filter_func = CatRom;
         window = 2.0;
         nop = 1;
         break;
     case CATROM_SHARP:
-        filter = CatRomSharp;
+        filter_func = CatRomSharp;
         window = 2.0;
         nop = 1;
         break;
     case LANCZOS_3:
-        filter = Lanczos3;
+        filter_func = Lanczos3;
         window = 3.0;
         nop = 1;
         break;
     case LANCZOS_4:
-        filter = Lanczos4;
+        filter_func = Lanczos4;
         window = 4.0;
         nop = 1;
         break;
@@ -375,10 +375,10 @@ double *resize(double *data, s32 src_width, s32 src_height, s32 dst_width, s32 d
     if (nop) {
         if (dst_width == src_width) {
             if (dst_height == src_height)
-                return data;
-            return vfilter(data, src_width, src_height, dst_height, filter, window);
+                return src;
+            return vfilter(src, src_width, src_height, dst_height, filter_func, window);
         } else if (dst_height == src_height) {
-            return hfilter(data, src_width, src_height, dst_width, filter, window);
+            return hfilter(src, src_width, src_height, dst_width, filter_func, window);
         }
     }
 
@@ -386,13 +386,13 @@ double *resize(double *data, s32 src_width, s32 src_height, s32 dst_width, s32 d
     const double y_factor = (double)dst_height / src_height;
 
     if (x_factor >= y_factor) {
-        double *temp = vfilter(data, src_width, src_height, dst_height, filter, window);
-        double *ret = hfilter(temp, src_width, dst_height, dst_width, filter, window);
+        double *temp = vfilter(src, src_width, src_height, dst_height, filter_func, window);
+        double *ret = hfilter(temp, src_width, dst_height, dst_width, filter_func, window);
         free(temp);
         return ret;
     } else {
-        double *temp = hfilter(data, src_width, src_height, dst_width, filter, window);
-        double *ret = vfilter(temp, dst_width, src_height, dst_height, filter, window);
+        double *temp = hfilter(src, src_width, src_height, dst_width, filter_func, window);
+        double *ret = vfilter(temp, dst_width, src_height, dst_height, filter_func, window);
         free(temp);
         return ret;
     }

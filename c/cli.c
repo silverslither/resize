@@ -25,7 +25,7 @@ unsigned char *f64_to_u8(const double *arr, size_t len) {
     return out;
 }
 
-FILTER parseFilter(char *str) {
+Filter parseFilter(char *str) {
     static char filters[][20] = {
         "DEFAULT",
         "NEAREST",
@@ -62,7 +62,7 @@ int main(int argc, char **argv) {
         return 0;
     }
 
-    FILTER filter = DEFAULT;
+    Filter filter = DEFAULT;
     if (argc >= 6)
         filter = parseFilter(argv[5]);
 

@@ -1,12 +1,21 @@
 // Copyright (c) 2024 silverslither.
 
-import * as Filters from "./filters.js";
+import * as FilterFunctions from "./filters.js";
 
+/**
+ * Resample an image using nearest neighbor interpolation.
+ * @param {TypedArray} src Source image, in RGBA format.
+ * @param {number} src_width Source image width.
+ * @param {number} src_height Source image height.
+ * @param {number} dst_width Destination image width.
+ * @param {number} dst_height Destination image height.
+ * @returns {TypedArray} Destination image, in RGBA format, with the same type as source image.
+ */
 export function sample(src, src_width, src_height, dst_width, dst_height) {
     const x_factor = src_width / dst_width;
     const y_factor = src_height / dst_height;
 
-    const dst = new Float64Array((dst_width * dst_height) << 2);
+    const dst = new (Object.getPrototypeOf(src).constructor)((dst_width * dst_height) << 2);
 
     let dst_pixel = 0;
     for (let y = 0; y < dst_height; y++) {
@@ -152,23 +161,32 @@ function vscale(src, width, src_height, dst_height) {
     return dst;
 }
 
-export function scale(data, src_width, src_height, dst_width, dst_height) {
+/**
+ * Resize an image using area averaging / pixel mixing.
+ * @param {TypedArray} src Source image, in RGBA format.
+ * @param {number} src_width Source image width.
+ * @param {number} src_height Source image height.
+ * @param {number} dst_width Destination image width.
+ * @param {number} dst_height Destination image height.
+ * @returns {Float64Array} Destination image, in RGBA format.
+ */
+export function scale(src, src_width, src_height, dst_width, dst_height) {
     if (dst_width === src_width) {
         if (dst_height === src_height)
-            return data;
-        return vscale(data, src_width, src_height, dst_height);
+            return src;
+        return vscale(src, src_width, src_height, dst_height);
     } else if (dst_height === src_height) {
-        return hscale(data, src_width, src_height, dst_width);
+        return hscale(src, src_width, src_height, dst_width);
     }
 
     const x_factor = dst_width / src_width;
     const y_factor = dst_height / src_height;
 
     if (x_factor >= y_factor) {
-        const temp = vscale(data, src_width, src_height, dst_height);
+        const temp = vscale(src, src_width, src_height, dst_height);
         return hscale(temp, src_width, dst_height, dst_width);
     } else {
-        const temp = hscale(data, src_width, src_height, dst_width);
+        const temp = hscale(src, src_width, src_height, dst_width);
         return vscale(temp, dst_width, src_height, dst_height);
     }
 }
@@ -283,7 +301,10 @@ function vfilter(src, width, src_height, dst_height, filter, window) {
     return dst;
 }
 
-export const FILTERS = {
+/**
+ * @enum {number}
+ */
+export const Filters = {
     DEFAULT: 0,
     NEAREST: 1,
     AREA: 2,
@@ -300,61 +321,71 @@ export const FILTERS = {
     LANCZOS_4: 13
 };
 
-export function resize(data, src_width, src_height, dst_width, dst_height, filter_name = FILTERS.MITCHELL_NETRAVALI) {
-    let filter, window, nop = false;
-    switch (filter_name) {
-        case FILTERS.NEAREST:
-            return sample(data, src_width, src_height, dst_width, dst_height);
-        case FILTERS.AREA:
-            return scale(data, src_width, src_height, dst_width, dst_height);
-        case FILTERS.TRIANGLE:
-            filter = Filters.Triangle;
+/**
+ * Resample an image using a reconstruction filter. Also acts as a wrapper for `sample` and `scale`.
+ * @param {TypedArray} src Source image, in RGBA format.
+ * @param {number} src_width Source image width.
+ * @param {number} src_height Source image height.
+ * @param {number} dst_width Destination image width.
+ * @param {number} dst_height Destination image height.
+ * @param {Filters} filter Reconstruction filter to be used. `NEAREST` acts as a wrapper for `sample`, and `AREA` acts as a wrapper for `scale`. The default filter used is Mitchell-Netravali.
+ * @returns {Float64Array} Destination image, in RGBA format.
+ */
+export function resize(src, src_width, src_height, dst_width, dst_height, filter = 0) {
+    let filter_func, window, nop = false;
+    switch (filter) {
+        case Filters.NEAREST:
+            return sample(src, src_width, src_height, dst_width, dst_height);
+        case Filters.AREA:
+            return scale(src, src_width, src_height, dst_width, dst_height);
+        case Filters.TRIANGLE:
+            filter_func = FilterFunctions.Triangle;
             window = 1.0;
             nop = true;
             break;
-        case FILTERS.HERMITE:
-            filter = Filters.Hermite;
+        case Filters.HERMITE:
+            filter_func = FilterFunctions.Hermite;
             window = 1.0;
             nop = true;
             break;
-        case FILTERS.B_SPLINE_2:
-            filter = Filters.BSpline2;
+        case Filters.B_SPLINE_2:
+            filter_func = FilterFunctions.BSpline2;
             window = 1.5;
             break;
-        case FILTERS.B_SPLINE_3:
-            filter = Filters.BSpline3;
+        case Filters.B_SPLINE_3:
+            filter_func = FilterFunctions.BSpline3;
             window = 2.0;
             break;
-        case FILTERS.KEYS_HALF:
-            filter = Filters.KeysHalf;
+        case Filters.KEYS_HALF:
+            filter_func = FilterFunctions.KeysHalf;
             window = 2.0;
             break;
         default:
-        case FILTERS.MITNET:
-            filter = Filters.MitNet;
+        case Filters.MITNET:
+            filter_func = FilterFunctions.MitNet;
             window = 2.0;
             break;
-        case FILTERS.MITNET_SHARP:
-            filter = Filters.MitNetSharp;
+        case Filters.MITNET_SHARP:
+            filter_func = FilterFunctions.MitNetSharp;
             window = 2.0;
             break;
-        case FILTERS.CATROM:
-            filter = Filters.CatRom;
-            window = 2.0;
-            nop = true;
-            break;
-        case FILTERS.CATROM_SHARP:
-            filter = Filters.CatRomSharp;
+        case Filters.CATROM:
+            filter_func = FilterFunctions.CatRom;
             window = 2.0;
             nop = true;
             break;
-        case FILTERS.LANCZOS_3:
-            filter = Filters.Lanczos3;
+        case Filters.CATROM_SHARP:
+            filter_func = FilterFunctions.CatRomSharp;
+            window = 2.0;
+            nop = true;
+            break;
+        case Filters.LANCZOS_3:
+            filter_func = FilterFunctions.Lanczos3;
             window = 3.0;
             nop = true;
             break;
-        case FILTERS.LANCZOS_4:
-            filter = Filters.Lanczos4;
+        case Filters.LANCZOS_4:
+            filter_func = FilterFunctions.Lanczos4;
             window = 4.0;
             nop = true;
             break;
@@ -363,10 +394,10 @@ export function resize(data, src_width, src_height, dst_width, dst_height, filte
     if (nop) {
         if (dst_width === src_width) {
             if (dst_height === src_height)
-                return data;
-            return vfilter(data, src_width, src_height, dst_height, filter, window);
+                return src;
+            return vfilter(src, src_width, src_height, dst_height, filter_func, window);
         } else if (dst_height === src_height) {
-            return hfilter(data, src_width, src_height, dst_width, filter, window);
+            return hfilter(src, src_width, src_height, dst_width, filter_func, window);
         }
     }
 
@@ -374,10 +405,10 @@ export function resize(data, src_width, src_height, dst_width, dst_height, filte
     const y_factor = dst_height / src_height;
 
     if (x_factor >= y_factor) {
-        const temp = vfilter(data, src_width, src_height, dst_height, filter, window);
-        return hfilter(temp, src_width, dst_height, dst_width, filter, window);
+        const temp = vfilter(src, src_width, src_height, dst_height, filter_func, window);
+        return hfilter(temp, src_width, dst_height, dst_width, filter_func, window);
     } else {
-        const temp = hfilter(data, src_width, src_height, dst_width, filter, window);
-        return vfilter(temp, dst_width, src_height, dst_height, filter, window);
+        const temp = hfilter(src, src_width, src_height, dst_width, filter_func, window);
+        return vfilter(temp, dst_width, src_height, dst_height, filter_func, window);
     }
 }

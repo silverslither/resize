@@ -7,7 +7,7 @@
 
 typedef int32_t s32;
 
-typedef enum FILTER {
+typedef enum Filter {
     DEFAULT,
     NEAREST,
     AREA,
@@ -22,12 +22,40 @@ typedef enum FILTER {
     CATROM_SHARP,
     LANCZOS_3,
     LANCZOS_4
-} FILTER;
+} Filter;
 
+/**
+ * \brief Resample an image using nearest neighbor interpolation.
+ * \param src Source image, in RGBA format.
+ * \param src_width Source image width.
+ * \param src_height Source image height.
+ * \param dst_width Destination image width.
+ * \param dst_height Destination image height.
+ * \return Destination image, in RGBA format.
+ */
 double *sample(const double *src, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height);
 
-double *scale(double *data, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height);
+/**
+ * \brief Resize an image using area averaging / pixel mixing.
+ * \param src Source image, in RGBA format.
+ * \param src_width Source image width.
+ * \param src_height Source image height.
+ * \param dst_width Destination image width.
+ * \param dst_height Destination image height.
+ * \return Destination image, in RGBA format.
+ */
+double *scale(double *src, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height);
 
-double *resize(double *data, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height, FILTER filter_name);
+/**
+ * \brief Resample an image using a reconstruction filter. Also acts as a wrapper for `sample` and `scale`.
+ * \param src Source image, in RGBA format.
+ * \param src_width Source image width.
+ * \param src_height Source image height.
+ * \param dst_width Destination image width.
+ * \param dst_height Destination image height.
+ * \param filter Reconstruction filter to be used. `NEAREST` acts as a wrapper for `sample`, and `AREA` acts as a wrapper for `scale`. The default filter used is Mitchell-Netravali.
+ * \return Destination image, in RGBA format.
+ */
+double *resize(double *src, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height, Filter filter);
 
 #endif
