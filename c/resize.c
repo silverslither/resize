@@ -32,7 +32,7 @@ double *sample(const double *src, s32 src_width, s32 src_height, s32 dst_width, 
     const double x_factor = (double)src_width / dst_width;
     const double y_factor = (double)src_height / dst_height;
 
-    double *dst = malloc((dst_width * dst_height) << 5);
+    double *dst = calloc((dst_width * dst_height) << 2, 8);
 
     s32 dst_pixel = 0;
     for (s32 y = 0; y < dst_height; y++) {
@@ -57,7 +57,7 @@ static double *hscale(const double *src, s32 src_width, s32 height, s32 dst_widt
     const double factor = (double)src_width / dst_width;
     const double inv_factor = (double)dst_width / src_width;
 
-    double *dst = malloc((height * adj_dst_width) << 3);
+    double *dst = calloc(height * adj_dst_width, 8);
 
     s32 dst_offset = 0;
     for (s32 x = 0; x < dst_width; x++, dst_offset += 4) {
@@ -120,7 +120,7 @@ static double *vscale(const double *src, s32 width, s32 src_height, s32 dst_heig
     const double factor = (double)src_height / dst_height;
     const double inv_factor = (double)dst_height / src_height;
 
-    double *dst = malloc((adj_width * dst_height) << 3);
+    double *dst = calloc(adj_width * dst_height, 8);
 
     s32 dst_pixel = 0;
     for (s32 y = 0; y < dst_height; y++) {
@@ -212,7 +212,7 @@ static double *hfilter(const double *src, s32 src_width, s32 height, s32 dst_wid
     const s32 adj_src_area = adj_src_width * height;
     const double factor = (double)src_width / dst_width;
 
-    double *dst = malloc((height * adj_dst_width) << 3);
+    double *dst = calloc(height * adj_dst_width, 8);
 
     const double inv_filter_scale = q_fmax(factor, 1.0);
     const double filter_scale = 1.0 / inv_filter_scale;
@@ -266,7 +266,7 @@ static double *vfilter(const double *src, s32 width, s32 src_height, s32 dst_hei
     const s32 adj_src_area = adj_width * src_height;
     const double factor = (double)src_height / dst_height;
 
-    double *dst = malloc((adj_width * dst_height) << 3);
+    double *dst = calloc(adj_width * dst_height, 8);
 
     const double inv_filter_scale = q_fmax(factor, 1.0);
     const double filter_scale = 1.0 / inv_filter_scale;
