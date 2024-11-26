@@ -4,12 +4,12 @@ import * as FilterFunctions from "./filters.js";
 
 /**
  * Resample an image using nearest neighbor interpolation.
- * @param {TypedArray} src Source image, in RGBA format.
+ * @param {TypedArray} src Source image in RGBA format.
  * @param {number} src_width Source image width.
  * @param {number} src_height Source image height.
  * @param {number} dst_width Destination image width.
  * @param {number} dst_height Destination image height.
- * @returns {TypedArray} Destination image, in RGBA format, with the same type as source image.
+ * @returns {TypedArray} Destination image in RGBA format, with the same type as source image.
  */
 export function sample(src, src_width, src_height, dst_width, dst_height) {
     if (dst_width <= 0 || dst_height <= 0)
@@ -166,12 +166,12 @@ function vscale(src, width, src_height, dst_height) {
 
 /**
  * Resize an image using area averaging / pixel mixing.
- * @param {TypedArray} src Source image, in RGBA format.
+ * @param {TypedArray} src Source image in RGBA format.
  * @param {number} src_width Source image width.
  * @param {number} src_height Source image height.
  * @param {number} dst_width Destination image width.
  * @param {number} dst_height Destination image height.
- * @returns {Float64Array} Destination image, in RGBA format.
+ * @returns {Float64Array} Destination image in RGBA format.
  */
 export function scale(src, src_width, src_height, dst_width, dst_height) {
     if (dst_width <= 0 || dst_height <= 0)
@@ -329,13 +329,13 @@ export const Filters = {
 
 /**
  * Resample an image using a reconstruction filter. Also acts as a wrapper for `sample` and `scale`.
- * @param {TypedArray} src Source image, in RGBA format.
+ * @param {TypedArray} src Source image in RGBA format.
  * @param {number} src_width Source image width.
  * @param {number} src_height Source image height.
  * @param {number} dst_width Destination image width.
  * @param {number} dst_height Destination image height.
  * @param {Filters} filter Reconstruction filter to be used. `NEAREST` acts as a wrapper for `sample`, and `AREA` acts as a wrapper for `scale`. The default filter used is Mitchell-Netravali.
- * @returns {Float64Array} Destination image, in RGBA format.
+ * @returns {Float64Array} Destination image in RGBA format.
  */
 export function resize(src, src_width, src_height, dst_width, dst_height, filter = 0) {
     if (dst_width <= 0 || dst_height <= 0)

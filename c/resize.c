@@ -33,6 +33,8 @@ double *sample(const double *src, s32 src_width, s32 src_height, s32 dst_width, 
     const double y_factor = (double)src_height / dst_height;
 
     double *dst = calloc((dst_width * dst_height) << 2, 8);
+    if (!dst)
+        return NULL;
 
     s32 dst_pixel = 0;
     for (s32 y = 0; y < dst_height; y++) {
@@ -58,6 +60,8 @@ static double *hscale(const double *src, s32 src_width, s32 height, s32 dst_widt
     const double inv_factor = (double)dst_width / src_width;
 
     double *dst = calloc(height * adj_dst_width, 8);
+    if (!dst)
+        return NULL;
 
     s32 dst_offset = 0;
     for (s32 x = 0; x < dst_width; x++, dst_offset += 4) {
@@ -121,6 +125,8 @@ static double *vscale(const double *src, s32 width, s32 src_height, s32 dst_heig
     const double inv_factor = (double)dst_height / src_height;
 
     double *dst = calloc(adj_width * dst_height, 8);
+    if (!dst)
+        return NULL;
 
     s32 dst_pixel = 0;
     for (s32 y = 0; y < dst_height; y++) {
@@ -195,11 +201,15 @@ double *scale(double *src, s32 src_width, s32 src_height, s32 dst_width, s32 dst
 
     if (x_factor >= y_factor) {
         double *temp = vscale(src, src_width, src_height, dst_height);
+        if (!temp)
+            return NULL;
         double *ret = hscale(temp, src_width, dst_height, dst_width);
         free(temp);
         return ret;
     } else {
         double *temp = hscale(src, src_width, src_height, dst_width);
+        if (!temp)
+            return NULL;
         double *ret = vscale(temp, dst_width, src_height, dst_height);
         free(temp);
         return ret;
@@ -213,6 +223,8 @@ static double *hfilter(const double *src, s32 src_width, s32 height, s32 dst_wid
     const double factor = (double)src_width / dst_width;
 
     double *dst = calloc(height * adj_dst_width, 8);
+    if (!dst)
+        return NULL;
 
     const double inv_filter_scale = q_fmax(factor, 1.0);
     const double filter_scale = 1.0 / inv_filter_scale;
@@ -267,6 +279,8 @@ static double *vfilter(const double *src, s32 width, s32 src_height, s32 dst_hei
     const double factor = (double)src_height / dst_height;
 
     double *dst = calloc(adj_width * dst_height, 8);
+    if (!dst)
+        return NULL;
 
     const double inv_filter_scale = q_fmax(factor, 1.0);
     const double filter_scale = 1.0 / inv_filter_scale;
@@ -397,11 +411,15 @@ double *resize(double *src, s32 src_width, s32 src_height, s32 dst_width, s32 ds
 
     if (x_factor >= y_factor) {
         double *temp = vfilter(src, src_width, src_height, dst_height, filter_func, window);
+        if (!temp)
+            return NULL;
         double *ret = hfilter(temp, src_width, dst_height, dst_width, filter_func, window);
         free(temp);
         return ret;
     } else {
         double *temp = hfilter(src, src_width, src_height, dst_width, filter_func, window);
+        if (!temp)
+            return NULL;
         double *ret = vfilter(temp, dst_width, src_height, dst_height, filter_func, window);
         free(temp);
         return ret;
