@@ -21,6 +21,8 @@ double CatRom(double x);
 
 double CatRomSharp(double x);
 
+double MagicKernelSharp2013(double x);
+
 double Lanczos3(double x);
 
 double Lanczos4(double x);

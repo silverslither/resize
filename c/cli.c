@@ -39,6 +39,7 @@ Filter parseFilter(char *str) {
         "MITNETSHARP",
         "CATROM",
         "CATROMSHARP",
+        "MKS2013",
         "LANCZOS3",
         "LANCZOS4"
     };

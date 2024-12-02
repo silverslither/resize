@@ -384,6 +384,10 @@ double *resize(double *src, s32 src_width, s32 src_height, s32 dst_width, s32 ds
         window = 2.0;
         nop = 1;
         break;
+    case MKS2013:
+        filter_func = MagicKernelSharp2013;
+        window = 2.5;
+        break;
     case LANCZOS_3:
         filter_func = Lanczos3;
         window = 3.0;

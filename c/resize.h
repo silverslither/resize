@@ -20,6 +20,7 @@ typedef enum Filter {
     MITNET_SHARP,
     CATROM,
     CATROM_SHARP,
+    MKS2013,
     LANCZOS_3,
     LANCZOS_4
 } Filter;

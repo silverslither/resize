@@ -50,6 +50,15 @@ export const CatRomSharp = (x) => {
     return 2.4 - x * (4.8 - x * (3 - 0.6 * x));
 };
 
+export const MagicKernelSharp2013 = (x) => {
+    if (x <= 0.5)
+        return 1.0625 - 1.75 * x * x;
+    if (x <= 1.5)
+        return 1.75 - x * (2.75 - x);
+    const x_ = x - 2.5;
+    return -0.125 * x_ * x_;
+};
+
 const sinc3 = (x) => {
     const x2 = x * x;
     const v = 0.19010152698956836 - 0.00932297307587116 * x2;

@@ -323,8 +323,9 @@ export const Filters = {
     MITNET_SHARP: 9,
     CATROM: 10,
     CATROM_SHARP: 11,
-    LANCZOS_3: 12,
-    LANCZOS_4: 13
+    MKS2013: 12,
+    LANCZOS_3: 13,
+    LANCZOS_4: 14
 };
 
 /**
@@ -388,6 +389,10 @@ export function resize(src, src_width, src_height, dst_width, dst_height, filter
             filter_func = FilterFunctions.CatRomSharp;
             window = 2.0;
             nop = true;
+            break;
+        case Filters.MKS2013:
+            filter_func = FilterFunctions.MagicKernelSharp2013;
+            window = 2.5;
             break;
         case Filters.LANCZOS_3:
             filter_func = FilterFunctions.Lanczos3;
