@@ -2,4 +2,4 @@
 
 ok image resizing implementation.
 
-TODO: Write-up
+TODO: port iconvolve to js, write-up

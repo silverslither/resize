@@ -15,14 +15,13 @@ typedef enum Filter {
     HERMITE,
     B_SPLINE_2,
     B_SPLINE_3,
-    KEYS_HALF,
     MITNET,
-    MITNET_SHARP,
     CATROM,
-    CATROM_SHARP,
-    MKS2013,
+    MKS_2013,
     LANCZOS_3,
-    LANCZOS_4
+    LANCZOS_4,
+    B_SPLINE_3_I,
+    O_MOMS_3_I,
 } Filter;
 
 /**
@@ -45,18 +44,48 @@ double *sample(const double *src, s32 src_width, s32 src_height, s32 dst_width, 
  * \param dst_height Destination image height.
  * \return Destination image in RGBA format, or null pointer if OOM.
  */
-double *scale(double *src, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height);
+double *scale(const double *src, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height);
 
 /**
- * \brief Resample an image using a reconstruction filter. Also acts as a wrapper for `sample` and `scale`.
+ * \brief Resize an image using a reconstruction filter.
  * \param src Source image in RGBA format.
  * \param src_width Source image width.
  * \param src_height Source image height.
  * \param dst_width Destination image width.
  * \param dst_height Destination image height.
- * \param filter Reconstruction filter to be used. `NEAREST` acts as a wrapper for `sample`, and `AREA` acts as a wrapper for `scale`. The default filter used is Mitchell-Netravali.
+ * \param filter Reconstruction filter function.
+ * \param window Filter function window.
+ * \param nop Boolean flag for a no-op case.
  * \return Destination image in RGBA format, or null pointer if OOM.
  */
-double *resize(double *src, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height, Filter filter);
+double *reconstruct(const double *src, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height, double (*filter)(double), double window, int nop);
+
+/**
+ * \brief Resize an image using a reconstruction filter and an inverse discrete convolution.
+ * \param src Source image in RGBA format.
+ * \param src_width Source image width.
+ * \param src_height Source image height.
+ * \param dst_width Destination image width.
+ * \param dst_height Destination image height.
+ * \param filter Reconstruction filter function.
+ * \param window Filter function window.
+ * \param L Lower matrix coefficients.
+ * \param m Number of lower matrix coefficients.
+ * \param nop Boolean flag for a no-op case.
+ * \return Destination image in RGBA format, or null pointer if OOM.
+ */
+double *reconstruct_iconvolve(const double *src, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height, double (*filter)(double), double window, const double *L, int m, int nop);
+
+/**
+ * \brief Wrapper for `sample`, `scale`, `reconstruct`, and `reconstruct_iconvolve`.
+ * \param src Source image in RGBA format.
+ * \param src_width Source image width.
+ * \param src_height Source image height.
+ * \param dst_width Destination image width.
+ * \param dst_height Destination image height.
+ * \param filter Resizing method (filter) to be used. Defaults to the interpolating cubic O-MOMS filter.
+ * \return Destination image in RGBA format, or null pointer if OOM.
+ */
+double *resize(const double *src, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height, Filter filter);
 
 #endif
