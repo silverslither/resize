@@ -20,6 +20,8 @@ typedef enum Filter {
     MKS_2013,
     LANCZOS_3,
     LANCZOS_4,
+    HAMMING_3,
+    HAMMING_4,
     B_SPLINE_3_I,
     O_MOMS_3_I,
 } Filter;

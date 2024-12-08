@@ -38,6 +38,8 @@ Filter parseFilter(char *str) {
         "MKS2013",
         "LANCZOS3",
         "LANCZOS4",
+        "HAMMING3",
+        "HAMMING4",
         "BSPLINE3I",
         "OMOMS3I"
     };

@@ -633,6 +633,7 @@ double *resize(const double *src, s32 src_width, s32 src_height, s32 dst_width, 
         return reconstruct(src, src_width, src_height, dst_width, dst_height, BSpline2, 1.5, 1.0, 0);
     case B_SPLINE_3:
         return reconstruct(src, src_width, src_height, dst_width, dst_height, BSpline3, 2.0, 1.0, 0);
+    default:
     case MITNET:
         return reconstruct(src, src_width, src_height, dst_width, dst_height, MitNet, 2.0, 1.0, 0);
     case CATROM:
@@ -643,9 +644,12 @@ double *resize(const double *src, s32 src_width, s32 src_height, s32 dst_width, 
         return reconstruct(src, src_width, src_height, dst_width, dst_height, Lanczos3, 3.0, 1.0, 1);
     case LANCZOS_4:
         return reconstruct(src, src_width, src_height, dst_width, dst_height, Lanczos4, 4.0, 1.0, 1);
+    case HAMMING_3:
+        return reconstruct(src, src_width, src_height, dst_width, dst_height, Hamming3, 3.0, 1.0, 1);
+    case HAMMING_4:
+        return reconstruct(src, src_width, src_height, dst_width, dst_height, Hamming4, 4.0, 1.0, 1);
     case B_SPLINE_3_I:
         return reconstruct_iconvolve(src, src_width, src_height, dst_width, dst_height, pNormBSpline3, 2.0, 6.0, L_bspline3i, 15, 1);
-    default:
     case O_MOMS_3_I:
         return reconstruct_iconvolve(src, src_width, src_height, dst_width, dst_height, pNormOMOMS3, 2.0, 5.25, L_omoms3, 18, 1);
     }

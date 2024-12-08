@@ -1,6 +1,7 @@
 // Copyright (c) 2024 silverslither.
 
 #include "filters.h"
+#include <math.h>
 #include <stdint.h>
 
 double Triangle(double x) {
@@ -46,12 +47,12 @@ double MKS2013(double x) {
     return -0.125 * x_ * x_;
 }
 
-static inline double sinc3(double x) {
+static inline double lsin3(double x) {
     const double x2 = x * x;
     const double v = 2.829828552115177 - 1.2490259408560183 * x2;
     return x * (1.7320508075688772 - v * x2);
 }
-static inline double sinc3w(double x) {
+static inline double lsin3w(double x) {
     const double x2 = x * x;
     const double v = 0.10480846489315472 - 0.005140024447967154 * x2;
     return x * (0.5773502691896257 - v * x2);
@@ -59,18 +60,18 @@ static inline double sinc3w(double x) {
 double Lanczos3(double x) {
     if (x < 1.0e-8)
         return 1.0;
-    const int floor_x = (int)(x + 0.5);
-    const uint64_t sign = ((uint64_t)(~floor_x) << 63) | 0x3ff0000000000000;
-    const double poly_x = *(const double *)&sign * (x - (double)floor_x);
-    return sinc3(poly_x) * sinc3w(x > 1.5 ? 3.0 - x : x) / (x * x);
+    const int round_x = (int)(x + 0.5);
+    const uint64_t sign = ((uint64_t)(round_x) << 63) | 0x3ff0000000000000;
+    const double poly_x = *(const double *)&sign * (x - (double)round_x);
+    return lsin3(poly_x) * lsin3w(x > 1.5 ? 3.0 - x : x) / (x * x);
 }
 
-static inline double sinc4(double x) {
+static inline double lsin4(double x) {
     const double x2 = x * x;
     const double v = 3.2676045526483732 - 1.4422509263560956 * x2;
     return x * (2.0 - v * x2);
 }
-static inline double sinc4w(double x) {
+static inline double lsin4w(double x) {
     const double x2 = x * x;
     const double v = 0.05105632113513083 - 0.0014084481702696247 * x2;
     return x * (0.5 - v * x2);
@@ -78,10 +79,46 @@ static inline double sinc4w(double x) {
 double Lanczos4(double x) {
     if (x < 1.0e-8)
         return 1.0;
-    const int floor_x = (int)(x + 0.5);
-    const uint64_t sign = ((uint64_t)(~floor_x) << 63) | 0x3ff0000000000000;
-    const double poly_x = *(const double *)&sign * (x - (double)floor_x);
-    return sinc4(poly_x) * sinc4w(x > 2.0 ? 4.0 - x : x) / (x * x);
+    const int round_x = (int)(x + 0.5);
+    const uint64_t sign = ((uint64_t)(round_x) << 63) | 0x3ff0000000000000;
+    const double poly_x = *(const double *)&sign * (x - (double)round_x);
+    return lsin4(poly_x) * lsin4w(x > 2.0 ? 4.0 - x : x) / (x * x);
+}
+
+static inline double hsin(double x) {
+    const double x2 = x * x;
+    const double v = 1.6338022763241866 - 0.7211254631780478 * x2;
+    return x * (1.0 - v * x2);
+}
+
+static inline double hcos3w(double x) {
+    const double x2 = x * x;
+    const double v = 0.24920390748853422 - 0.019569144068978167 * x2;
+    return 0.46164 - v * x2;
+}
+double Hamming3(double x) {
+    if (x < 1.0e-8)
+        return 1.0;
+    const int round_x = (int)(x + 0.5);
+    const uint64_t sign = ((uint64_t)(round_x) << 63) | 0x3ff0000000000000;
+    const double poly_x = *(const double *)&sign * (x - (double)round_x);
+    const double w = copysign(hcos3w(x > 1.5 ? x - 3.0 : x), 1.5 - x);
+    return hsin(poly_x) * (0.53836 + w) / x;
+}
+
+static inline double hcos4w(double x) {
+    const double x2 = x * x;
+    const double v = 0.1401771979623005 - 0.006191799490575123 * x2;
+    return 0.46164 - v * x2;
+}
+double Hamming4(double x) {
+    if (x < 1.0e-8)
+        return 1.0;
+    const int round_x = (int)(x + 0.5);
+    const uint64_t sign = ((uint64_t)(round_x) << 63) | 0x3ff0000000000000;
+    const double poly_x = *(const double *)&sign * (x - (double)round_x);
+    const double w = copysign(hcos4w(x > 2.0 ? x - 4.0 : x), 2.0 - x);
+    return hsin(poly_x) * (0.53836 + w) / x;
 }
 
 double L_bspline3i[15] = {
