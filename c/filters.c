@@ -46,79 +46,42 @@ double MKS2013(double x) {
     return -0.125 * x_ * x_;
 }
 
-static double sinc3(double x) {
+static inline double sinc3(double x) {
     const double x2 = x * x;
-    const double v = 0.19010152698956836 - 0.00932297307587116 * x2;
-    return 1.0471975511965979 - v * x2;
+    const double v = 2.829828552115177 - 1.2490259408560183 * x2;
+    return x * (1.7320508075688772 - v * x2);
 }
-static double lnorm3(double x) {
-    const double c0 = x;
-    const double c0_ = 3.0 - x;
-    const double c1 = x >= 0.5 ? 2.0 - x : x + 1.0;
-    const double c1_ = 3.0 - c1;
-    const double c2 = 1.0 - x;
-    const double c2_ = x + 2.0;
-    const double o0 = sinc3(c0);
-    const double o1 = sinc3(c1);
-    const double o2 = sinc3(c2);
-    double v = 0.0;
-    v -= o2 / c2;
-    v += o1 / c1;
-    v -= o0 / c0;
-    v -= c0 * o0 / (c0_ * c0_);
-    v += c1 * o1 / (c1_ * c1_);
-    v -= c2 * o2 / (c2_ * c2_);
-    return v;
+static inline double sinc3w(double x) {
+    const double x2 = x * x;
+    const double v = 0.10480846489315472 - 0.005140024447967154 * x2;
+    return x * (0.5773502691896257 - v * x2);
 }
 double Lanczos3(double x) {
     if (x < 1.0e-8)
         return 1.0;
-    const int floor_x = (int)x;
+    const int floor_x = (int)(x + 0.5);
     const uint64_t sign = ((uint64_t)(~floor_x) << 63) | 0x3ff0000000000000;
-    const double poly_x = x > 1.5 ? 3.0 - x : x;
-    const double numerator = sinc3(poly_x) * poly_x / (x * x);
-    const double denominator = lnorm3(x - floor_x);
-    return *(const double *)&sign * numerator / denominator;
+    const double poly_x = *(const double *)&sign * (x - (double)floor_x);
+    return sinc3(poly_x) * sinc3w(x > 1.5 ? 3.0 - x : x) / (x * x);
 }
 
-static double sinc4(double x) {
+static inline double sinc4(double x) {
     const double x2 = x * x;
-    const double v = 0.08019908169872415 - 0.002212385212340519 * x2;
-    return 0.7853981633974483 - v * x2;
+    const double v = 3.2676045526483732 - 1.4422509263560956 * x2;
+    return x * (2.0 - v * x2);
 }
-static double lnorm4(double x) {
-    const double c0 = x;
-    const double c0_ = 4.0 - x;
-    const double c1 = x + 1.0;
-    const double c1_ = 3.0 - x;
-    const double c2 = 2.0 - x;
-    const double c2_ = x + 2.0;
-    const double c3 = 1.0 - x;
-    const double c3_ = x + 3.0;
-    const double o0 = sinc4(c0);
-    const double o1 = sinc4(c1);
-    const double o2 = sinc4(c2);
-    const double o3 = sinc4(c3);
-    double v = 0.0;
-    v -= o3 / c3;
-    v += o2 / c2;
-    v -= o0 / c0;
-    v += o1 / c1;
-    v -= c1 * o1 / (c1_ * c1_);
-    v += c0 * o0 / (c0_ * c0_);
-    v -= c2 * o2 / (c2_ * c2_);
-    v += c3 * o3 / (c3_ * c3_);
-    return v;
+static inline double sinc4w(double x) {
+    const double x2 = x * x;
+    const double v = 0.05105632113513083 - 0.0014084481702696247 * x2;
+    return x * (0.5 - v * x2);
 }
 double Lanczos4(double x) {
     if (x < 1.0e-8)
         return 1.0;
-    const int floor_x = (int)x;
+    const int floor_x = (int)(x + 0.5);
     const uint64_t sign = ((uint64_t)(~floor_x) << 63) | 0x3ff0000000000000;
-    const double poly_x = x > 2.0 ? 4.0 - x : x;
-    const double numerator = sinc4(poly_x) * poly_x / (x * x);
-    const double denominator = lnorm4(x - floor_x);
-    return *(const double *)&sign * numerator / denominator;
+    const double poly_x = *(const double *)&sign * (x - (double)floor_x);
+    return sinc4(poly_x) * sinc4w(x > 2.0 ? 4.0 - x : x) / (x * x);
 }
 
 double L_bspline3i[15] = {

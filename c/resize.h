@@ -58,7 +58,7 @@ double *scale(const double *src, s32 src_width, s32 src_height, s32 dst_width, s
  * \param nop Boolean flag for a no-op case.
  * \return Destination image in RGBA format, or null pointer if OOM.
  */
-double *reconstruct(const double *src, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height, double (*filter)(double), double window, int nop);
+double *reconstruct(const double *src, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height, double (*filter)(double), double window, double norm, int nop);
 
 /**
  * \brief Resize an image using a reconstruction filter and an inverse discrete convolution.
@@ -74,7 +74,7 @@ double *reconstruct(const double *src, s32 src_width, s32 src_height, s32 dst_wi
  * \param nop Boolean flag for a no-op case.
  * \return Destination image in RGBA format, or null pointer if OOM.
  */
-double *reconstruct_iconvolve(const double *src, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height, double (*filter)(double), double window, const double *L, int m, int nop);
+double *reconstruct_iconvolve(const double *src, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height, double (*filter)(double), double window, double norm, const double *L, int m, int nop);
 
 /**
  * \brief Wrapper for `sample`, `scale`, `reconstruct`, and `reconstruct_iconvolve`.
