@@ -1,5 +1,6 @@
 // Copyright (c) 2024 silverslither.
 
+#include "helper.h"
 #include "include/lodepng/lodepng.h"
 #include "resize.h"
 #include <ctype.h>
@@ -54,6 +55,8 @@ Filter parseFilter(char *str) {
             return i;
     }
 
+    printf("warning: invalid filter '%s'\n", str);
+
     return 0;
 }
 
@@ -88,11 +91,13 @@ int main(int argc, char **argv) {
 
     double *img = u8_to_f64(_img, area);
     free(_img);
+    multiplyAlpha(img, area);
 
     double *resized = resize(img, src_width, src_height, dst_width, dst_height, filter);
+    free(img);
 
     area = ((size_t)dst_width * (size_t)dst_height) << 2;
-    free(img);
+    divideAlpha(resized, area);
 
     _img = f64_to_u8(resized, area);
     free(resized);
