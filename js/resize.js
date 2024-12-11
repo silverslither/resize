@@ -1,6 +1,6 @@
 // Copyright (c) 2024 silverslither.
 
-import * as FilterFunctions from "./filters.js";
+import * as Filters from "./filters.js";
 
 /**
  * Resample an image using nearest neighbor interpolation.
@@ -12,8 +12,11 @@ import * as FilterFunctions from "./filters.js";
  * @returns {TypedArray} Destination image in RGBA format, with the same type as source image.
  */
 export function sample(src, src_width, src_height, dst_width, dst_height) {
-    if (dst_width <= 0 || dst_height <= 0)
+    if (src_width <= 0 || src_height <= 0 || dst_width <= 0 || dst_height <= 0)
         return new (Object.getPrototypeOf(src).constructor)();
+
+    if (src_width === dst_width && src_height === dst_height)
+        return new (Object.getPrototypeOf(src).constructor)(src);
 
     const x_factor = src_width / dst_width;
     const y_factor = src_height / dst_height;
@@ -26,10 +29,10 @@ export function sample(src, src_width, src_height, dst_width, dst_height) {
         for (let x = 0; x < dst_width; x++, dst_pixel += 4) {
             const mapped_x = Math.ceil(x_factor * (x + 0.5) - 1.0);
             const src_pixel = (mapped_y + mapped_x) << 2;
-            dst[dst_pixel + 0] += src[src_pixel + 0];
-            dst[dst_pixel + 1] += src[src_pixel + 1];
-            dst[dst_pixel + 2] += src[src_pixel + 2];
-            dst[dst_pixel + 3] += src[src_pixel + 3];
+            dst[dst_pixel + 0] = src[src_pixel + 0];
+            dst[dst_pixel + 1] = src[src_pixel + 1];
+            dst[dst_pixel + 2] = src[src_pixel + 2];
+            dst[dst_pixel + 3] = src[src_pixel + 3];
         }
     }
 
@@ -79,7 +82,7 @@ function hscale(src, src_width, height, dst_width) {
             dst[dst_pixel + 3] += src[src_pixel + 3] * low_mult;
 
             const src_max = y + max_x;
-            for (let src_pixel = y + min_x; src_pixel < src_max; src_pixel += 4) {
+            for (src_pixel = y + min_x; src_pixel < src_max; src_pixel += 4) {
                 dst[dst_pixel + 0] += src[src_pixel + 0];
                 dst[dst_pixel + 1] += src[src_pixel + 1];
                 dst[dst_pixel + 2] += src[src_pixel + 2];
@@ -142,7 +145,7 @@ function vscale(src, width, src_height, dst_height) {
             dst[dst_pixel + 3] += src[src_pixel + 3] * low_mult;
 
             const src_max = x + max_y;
-            for (let src_pixel = x + min_y; src_pixel < src_max; src_pixel += adj_width) {
+            for (src_pixel = x + min_y; src_pixel < src_max; src_pixel += adj_width) {
                 dst[dst_pixel + 0] += src[src_pixel + 0];
                 dst[dst_pixel + 1] += src[src_pixel + 1];
                 dst[dst_pixel + 2] += src[src_pixel + 2];
@@ -174,12 +177,12 @@ function vscale(src, width, src_height, dst_height) {
  * @returns {Float64Array} Destination image in RGBA format.
  */
 export function scale(src, src_width, src_height, dst_width, dst_height) {
-    if (dst_width <= 0 || dst_height <= 0)
+    if (src_width <= 0 || src_height <= 0 || dst_width <= 0 || dst_height <= 0)
         return new Float64Array();
 
     if (dst_width === src_width) {
         if (dst_height === src_height)
-            return src;
+            return new Float64Array(src);
         return vscale(src, src_width, src_height, dst_height);
     } else if (dst_height === src_height) {
         return hscale(src, src_width, src_height, dst_width);
@@ -197,13 +200,13 @@ export function scale(src, src_width, src_height, dst_width, dst_height) {
     }
 }
 
-function hfilter(src, src_width, height, dst_width, filter, window) {
+function hreconstruct(src, src_width, height, dst_width, filter, window, norm) {
     const adj_src_width = src_width << 2;
     const adj_dst_width = dst_width << 2;
-    const adj_src_area = adj_src_width * height;
+    const adj_dst_area = adj_dst_width * height;
     const factor = src_width / dst_width;
 
-    const dst = new Float64Array(height * adj_dst_width);
+    const dst = new Float64Array(adj_dst_width * height);
 
     const inv_filter_scale = Math.max(factor, 1.0);
     const filter_scale = 1.0 / inv_filter_scale;
@@ -216,45 +219,63 @@ function hfilter(src, src_width, height, dst_width, filter, window) {
         const mapped_x = factor * (x + 0.5) - 0.5;
         let min_x = Math.ceil(mapped_x - window);
         let max_x = Math.floor(mapped_x + window);
+        let weight_total = 0;
 
-        while (min_x < 0) {
-            const weight = filter((mapped_x - (min_x++)) * filter_scale) * filter_scale;
-            for (let src_pixel = 0, dst_pixel = dst_offset; src_pixel < adj_src_area; src_pixel += adj_src_width, dst_pixel += adj_dst_width) {
-                dst[dst_pixel + 0] += src[src_pixel + 0] * weight;
-                dst[dst_pixel + 1] += src[src_pixel + 1] * weight;
-                dst[dst_pixel + 2] += src[src_pixel + 2] * weight;
-                dst[dst_pixel + 3] += src[src_pixel + 3] * weight;
+        if (min_x < 0) {
+            do {
+                weight_total += filter((mapped_x - (min_x++)) * filter_scale) * filter_scale;
+            } while (min_x < 0);
+
+            for (let src_pixel = 0, dst_pixel = dst_offset; dst_pixel < adj_dst_area; src_pixel += adj_src_width, dst_pixel += adj_dst_width) {
+                dst[dst_pixel + 0] += src[src_pixel + 0] * weight_total;
+                dst[dst_pixel + 1] += src[src_pixel + 1] * weight_total;
+                dst[dst_pixel + 2] += src[src_pixel + 2] * weight_total;
+                dst[dst_pixel + 3] += src[src_pixel + 3] * weight_total;
             }
         }
 
-        while (max_x >= src_width) {
-            const weight = filter(((max_x--) - mapped_x) * filter_scale) * filter_scale;
-            for (let src_pixel = width_end, dst_pixel = dst_offset; src_pixel < adj_src_area; src_pixel += adj_src_width, dst_pixel += adj_dst_width) {
-                dst[dst_pixel + 0] += src[src_pixel + 0] * weight;
-                dst[dst_pixel + 1] += src[src_pixel + 1] * weight;
-                dst[dst_pixel + 2] += src[src_pixel + 2] * weight;
-                dst[dst_pixel + 3] += src[src_pixel + 3] * weight;
+        if (max_x >= src_width) {
+            let weight_accum = 0;
+            do {
+                weight_accum += filter(((max_x--) - mapped_x) * filter_scale) * filter_scale;
+            } while (max_x >= src_width);
+            weight_total += weight_accum;
+
+            for (let src_pixel = width_end, dst_pixel = dst_offset; dst_pixel < adj_dst_area; src_pixel += adj_src_width, dst_pixel += adj_dst_width) {
+                dst[dst_pixel + 0] += src[src_pixel + 0] * weight_accum;
+                dst[dst_pixel + 1] += src[src_pixel + 1] * weight_accum;
+                dst[dst_pixel + 2] += src[src_pixel + 2] * weight_accum;
+                dst[dst_pixel + 3] += src[src_pixel + 3] * weight_accum;
             }
         }
 
         let src_offset = min_x << 2;
         for (let s = min_x; s <= max_x; s++, src_offset += 4) {
             const weight = filter(Math.abs(mapped_x - s) * filter_scale) * filter_scale;
-            for (let src_pixel = src_offset, dst_pixel = dst_offset; src_pixel < adj_src_area; src_pixel += adj_src_width, dst_pixel += adj_dst_width) {
+            weight_total += weight;
+
+            for (let src_pixel = src_offset, dst_pixel = dst_offset; dst_pixel < adj_dst_area; src_pixel += adj_src_width, dst_pixel += adj_dst_width) {
                 dst[dst_pixel + 0] += src[src_pixel + 0] * weight;
                 dst[dst_pixel + 1] += src[src_pixel + 1] * weight;
                 dst[dst_pixel + 2] += src[src_pixel + 2] * weight;
                 dst[dst_pixel + 3] += src[src_pixel + 3] * weight;
             }
         }
+
+        weight_total = norm / weight_total;
+        for (let dst_pixel = dst_offset; dst_pixel < adj_dst_area; dst_pixel += adj_dst_width) {
+            dst[dst_pixel + 0] *= weight_total;
+            dst[dst_pixel + 1] *= weight_total;
+            dst[dst_pixel + 2] *= weight_total;
+            dst[dst_pixel + 3] *= weight_total;
+        }
     }
 
     return dst;
 }
 
-function vfilter(src, width, src_height, dst_height, filter, window) {
+function vreconstruct(src, width, src_height, dst_height, filter, window, norm) {
     const adj_width = width << 2;
-    const adj_src_area = adj_width * src_height;
     const factor = src_height / dst_height;
 
     const dst = new Float64Array(adj_width * dst_height);
@@ -266,41 +287,60 @@ function vfilter(src, width, src_height, dst_height, filter, window) {
     const height_end = adj_width * (src_height - 1);
 
     let dst_offset = 0;
-    for (let y = 0; y < dst_height; y++, dst_offset += adj_width) {
+    let ndst_offset = adj_width;
+    for (let y = 0; y < dst_height; y++, dst_offset = ndst_offset, ndst_offset += adj_width) {
         const mapped_y = factor * (y + 0.5) - 0.5;
         let min_y = Math.ceil(mapped_y - window);
         let max_y = Math.floor(mapped_y + window);
+        let weight_total = 0;
 
-        while (min_y < 0) {
-            const weight = filter((mapped_y - (min_y++)) * filter_scale) * filter_scale;
-            for (let src_pixel = 0, dst_pixel = dst_offset; src_pixel < adj_width; src_pixel += 4, dst_pixel += 4) {
-                dst[dst_pixel + 0] += src[src_pixel + 0] * weight;
-                dst[dst_pixel + 1] += src[src_pixel + 1] * weight;
-                dst[dst_pixel + 2] += src[src_pixel + 2] * weight;
-                dst[dst_pixel + 3] += src[src_pixel + 3] * weight;
+        if (min_y < 0) {
+            do {
+                weight_total += filter((mapped_y - (min_y++)) * filter_scale) * filter_scale;
+            } while (min_y < 0);
+
+            for (let src_pixel = 0, dst_pixel = dst_offset; dst_pixel < ndst_offset; src_pixel += 4, dst_pixel += 4) {
+                dst[dst_pixel + 0] += src[src_pixel + 0] * weight_total;
+                dst[dst_pixel + 1] += src[src_pixel + 1] * weight_total;
+                dst[dst_pixel + 2] += src[src_pixel + 2] * weight_total;
+                dst[dst_pixel + 3] += src[src_pixel + 3] * weight_total;
             }
         }
 
-        while (max_y >= src_height) {
-            const weight = filter(((max_y--) - mapped_y) * filter_scale) * filter_scale;
-            for (let src_pixel = height_end, dst_pixel = dst_offset; src_pixel < adj_src_area; src_pixel += 4, dst_pixel += 4) {
-                dst[dst_pixel + 0] += src[src_pixel + 0] * weight;
-                dst[dst_pixel + 1] += src[src_pixel + 1] * weight;
-                dst[dst_pixel + 2] += src[src_pixel + 2] * weight;
-                dst[dst_pixel + 3] += src[src_pixel + 3] * weight;
+        if (max_y >= src_height) {
+            let weight_accum = 0;
+            do {
+                weight_accum += filter(((max_y--) - mapped_y) * filter_scale) * filter_scale;
+            } while (max_y >= src_height);
+            weight_total += weight_accum;
+
+            for (let src_pixel = height_end, dst_pixel = dst_offset; dst_pixel < ndst_offset; src_pixel += 4, dst_pixel += 4) {
+                dst[dst_pixel + 0] += src[src_pixel + 0] * weight_accum;
+                dst[dst_pixel + 1] += src[src_pixel + 1] * weight_accum;
+                dst[dst_pixel + 2] += src[src_pixel + 2] * weight_accum;
+                dst[dst_pixel + 3] += src[src_pixel + 3] * weight_accum;
             }
         }
 
         let src_offset = adj_width * min_y;
-        let src_max = src_offset + adj_width;
-        for (let s = min_y; s <= max_y; s++, src_offset = src_max, src_max += adj_width) {
+        for (let s = min_y; s <= max_y; s++, src_offset += adj_width) {
             const weight = filter(Math.abs(mapped_y - s) * filter_scale) * filter_scale;
-            for (let src_pixel = src_offset, dst_pixel = dst_offset; src_pixel < src_max; src_pixel += 4, dst_pixel += 4) {
+            weight_total += weight;
+
+            for (let src_pixel = src_offset, dst_pixel = dst_offset; dst_pixel < ndst_offset; src_pixel += 4, dst_pixel += 4) {
                 dst[dst_pixel + 0] += src[src_pixel + 0] * weight;
                 dst[dst_pixel + 1] += src[src_pixel + 1] * weight;
                 dst[dst_pixel + 2] += src[src_pixel + 2] * weight;
                 dst[dst_pixel + 3] += src[src_pixel + 3] * weight;
             }
+        }
+
+        weight_total = norm / weight_total;
+        for (let dst_pixel = dst_offset; dst_pixel < ndst_offset; dst_pixel += 4) {
+            dst[dst_pixel + 0] *= weight_total;
+            dst[dst_pixel + 1] *= weight_total;
+            dst[dst_pixel + 2] *= weight_total;
+            dst[dst_pixel + 3] *= weight_total;
         }
     }
 
@@ -308,111 +348,29 @@ function vfilter(src, width, src_height, dst_height, filter, window) {
 }
 
 /**
- * @enum {number}
- */
-export const Filters = {
-    DEFAULT: 0,
-    NEAREST: 1,
-    AREA: 2,
-    TRIANGLE: 3,
-    HERMITE: 4,
-    B_SPLINE_2: 5,
-    B_SPLINE_3: 6,
-    KEYS_HALF: 7,
-    MITNET: 8,
-    MITNET_SHARP: 9,
-    CATROM: 10,
-    CATROM_SHARP: 11,
-    MKS2013: 12,
-    LANCZOS_3: 13,
-    LANCZOS_4: 14
-};
-
-/**
- * Resample an image using a reconstruction filter. Also acts as a wrapper for `sample` and `scale`.
+ * Resize an image using a reconstruction filter.
  * @param {TypedArray} src Source image in RGBA format.
  * @param {number} src_width Source image width.
  * @param {number} src_height Source image height.
  * @param {number} dst_width Destination image width.
  * @param {number} dst_height Destination image height.
- * @param {Filters} filter Reconstruction filter to be used. `NEAREST` acts as a wrapper for `sample`, and `AREA` acts as a wrapper for `scale`. The default filter used is Mitchell-Netravali.
+ * @param {(x: number) => number} filter Reconstruction filter function.
+ * @param {number} window Filter function window.
+ * @param {number} norm Normalization constant.
+ * @param {boolean} nop Boolean flag for a no-op case.
  * @returns {Float64Array} Destination image in RGBA format.
  */
-export function resize(src, src_width, src_height, dst_width, dst_height, filter = 0) {
-    if (dst_width <= 0 || dst_height <= 0)
+export function reconstruct(src, src_width, src_height, dst_width, dst_height, filter, window, norm, nop) {
+    if (src_width <= 0 || src_height <= 0 || dst_width <= 0 || dst_height <= 0)
         return new Float64Array();
-
-    let filter_func, window, nop = false;
-
-    switch (filter) {
-        case Filters.NEAREST:
-            return sample(src, src_width, src_height, dst_width, dst_height);
-        case Filters.AREA:
-            return scale(src, src_width, src_height, dst_width, dst_height);
-        case Filters.TRIANGLE:
-            filter_func = FilterFunctions.Triangle;
-            window = 1.0;
-            nop = true;
-            break;
-        case Filters.HERMITE:
-            filter_func = FilterFunctions.Hermite;
-            window = 1.0;
-            nop = true;
-            break;
-        case Filters.B_SPLINE_2:
-            filter_func = FilterFunctions.BSpline2;
-            window = 1.5;
-            break;
-        case Filters.B_SPLINE_3:
-            filter_func = FilterFunctions.BSpline3;
-            window = 2.0;
-            break;
-        case Filters.KEYS_HALF:
-            filter_func = FilterFunctions.KeysHalf;
-            window = 2.0;
-            break;
-        default:
-        case Filters.MITNET:
-            filter_func = FilterFunctions.MitNet;
-            window = 2.0;
-            break;
-        case Filters.MITNET_SHARP:
-            filter_func = FilterFunctions.MitNetSharp;
-            window = 2.0;
-            break;
-        case Filters.CATROM:
-            filter_func = FilterFunctions.CatRom;
-            window = 2.0;
-            nop = true;
-            break;
-        case Filters.CATROM_SHARP:
-            filter_func = FilterFunctions.CatRomSharp;
-            window = 2.0;
-            nop = true;
-            break;
-        case Filters.MKS2013:
-            filter_func = FilterFunctions.MagicKernelSharp2013;
-            window = 2.5;
-            break;
-        case Filters.LANCZOS_3:
-            filter_func = FilterFunctions.Lanczos3;
-            window = 3.0;
-            nop = true;
-            break;
-        case Filters.LANCZOS_4:
-            filter_func = FilterFunctions.Lanczos4;
-            window = 4.0;
-            nop = true;
-            break;
-    }
 
     if (nop) {
         if (dst_width === src_width) {
             if (dst_height === src_height)
-                return src;
-            return vfilter(src, src_width, src_height, dst_height, filter_func, window);
+                return new Float64Array(src);
+            return vreconstruct(src, src_width, src_height, dst_height, filter, window, norm);
         } else if (dst_height === src_height) {
-            return hfilter(src, src_width, src_height, dst_width, filter_func, window);
+            return hreconstruct(src, src_width, src_height, dst_width, filter, window, norm);
         }
     }
 
@@ -420,10 +378,250 @@ export function resize(src, src_width, src_height, dst_width, dst_height, filter
     const y_factor = dst_height / src_height;
 
     if (x_factor >= y_factor) {
-        const temp = vfilter(src, src_width, src_height, dst_height, filter_func, window);
-        return hfilter(temp, src_width, dst_height, dst_width, filter_func, window);
+        const temp = vreconstruct(src, src_width, src_height, dst_height, filter, window, norm);
+        return hreconstruct(temp, src_width, dst_height, dst_width, filter, window, norm);
     } else {
-        const temp = hfilter(src, src_width, src_height, dst_width, filter_func, window);
-        return vfilter(temp, dst_width, src_height, dst_height, filter_func, window);
+        const temp = hreconstruct(src, src_width, src_height, dst_width, filter, window, norm);
+        return vreconstruct(temp, dst_width, src_height, dst_height, filter, window, norm);
+    }
+}
+
+function hiconvolve(img, width, height, L, m) {
+    if (width < m)
+        m = width;
+
+    const L_inf = L[m - 1];
+    const v_inv = L_inf / (1.0 + L_inf);
+    const f_adj = (width << 2) + 8;
+    let f = 4;
+
+    for (let y = 0; y < height; y++) {
+        let x;
+
+        for (x = 1; x < m; x++, f += 4) {
+            const L_x = L[x - 1];
+            img[f + 0] -= L_x * img[f - 4];
+            img[f + 1] -= L_x * img[f - 3];
+            img[f + 2] -= L_x * img[f - 2];
+            img[f + 3] -= L_x * img[f - 1];
+        }
+
+        for (; x < width; x++, f += 4) {
+            img[f + 0] -= L_inf * img[f - 4];
+            img[f + 1] -= L_inf * img[f - 3];
+            img[f + 2] -= L_inf * img[f - 2];
+            img[f + 3] -= L_inf * img[f - 1];
+        }
+
+        f -= 4;
+        img[f + 0] *= v_inv;
+        img[f + 1] *= v_inv;
+        img[f + 2] *= v_inv;
+        img[f + 3] *= v_inv;
+
+        f -= 4;
+        for (x = width - 2; x >= m - 1; x--, f -= 4) {
+            img[f + 0] = L_inf * (img[f + 0] - img[f + 4]);
+            img[f + 1] = L_inf * (img[f + 1] - img[f + 5]);
+            img[f + 2] = L_inf * (img[f + 2] - img[f + 6]);
+            img[f + 3] = L_inf * (img[f + 3] - img[f + 7]);
+        }
+
+        for (; x >= 0; x--, f -= 4) {
+            const L_x = L[x];
+            img[f + 0] = L_x * (img[f + 0] - img[f + 4]);
+            img[f + 1] = L_x * (img[f + 1] - img[f + 5]);
+            img[f + 2] = L_x * (img[f + 2] - img[f + 6]);
+            img[f + 3] = L_x * (img[f + 3] - img[f + 7]);
+        }
+
+        f += f_adj;
+    }
+}
+
+function viconvolve(img, width, height, L, m) {
+    if (height < m)
+        m = height;
+
+    const L_inf = L[m - 1];
+    const v_inv = L_inf / (1.0 + L_inf);
+    const adj_width = width << 2;
+    let pf = 0;
+    let f = adj_width;
+
+    for (let x = 0; x < width; x++) {
+        let y;
+
+        for (y = 1; y < m; y++, pf = f, f += adj_width) {
+            const L_y = L[y - 1];
+            img[f + 0] -= L_y * img[pf + 0];
+            img[f + 1] -= L_y * img[pf + 1];
+            img[f + 2] -= L_y * img[pf + 2];
+            img[f + 3] -= L_y * img[pf + 3];
+        }
+
+        for (; y < height; y++, pf = f, f += adj_width) {
+            img[f + 0] -= L_inf * img[pf + 0];
+            img[f + 1] -= L_inf * img[pf + 1];
+            img[f + 2] -= L_inf * img[pf + 2];
+            img[f + 3] -= L_inf * img[pf + 3];
+        }
+
+        img[pf + 0] *= v_inv;
+        img[pf + 1] *= v_inv;
+        img[pf + 2] *= v_inv;
+        img[pf + 3] *= v_inv;
+
+        f = pf - adj_width;
+        for (y = height - 2; y >= m - 1; y--, pf = f, f -= adj_width) {
+            img[f + 0] = L_inf * (img[f + 0] - img[pf + 0]);
+            img[f + 1] = L_inf * (img[f + 1] - img[pf + 1]);
+            img[f + 2] = L_inf * (img[f + 2] - img[pf + 2]);
+            img[f + 3] = L_inf * (img[f + 3] - img[pf + 3]);
+        }
+
+        for (y = m - 2; y >= 0; y--, pf = f, f -= adj_width) {
+            const L_y = L[y];
+            img[f + 0] = L_y * (img[f + 0] - img[pf + 0]);
+            img[f + 1] = L_y * (img[f + 1] - img[pf + 1]);
+            img[f + 2] = L_y * (img[f + 2] - img[pf + 2]);
+            img[f + 3] = L_y * (img[f + 3] - img[pf + 3]);
+        }
+
+        pf += 4;
+        f = pf + adj_width;
+    }
+}
+
+function hreconstruct_iconvolve(src, src_width, height, dst_width, filter, window, norm, L, m) {
+    if (dst_width > src_width) {
+        const temp = new Float64Array(src);
+        hiconvolve(temp, src_width, height, L, m);
+        return hreconstruct(temp, src_width, height, dst_width, filter, window, norm);
+    } else {
+        const ret = hreconstruct(src, src_width, height, dst_width, filter, window, norm);
+        hiconvolve(ret, dst_width, height, L, m);
+        return ret;
+    }
+}
+
+function vreconstruct_iconvolve(src, width, src_height, dst_height, filter, window, norm, L, m) {
+    if (dst_height > src_height) {
+        const temp = new Float64Array(src);
+        viconvolve(temp, width, src_height, L, m);
+        return vreconstruct(temp, width, src_height, dst_height, filter, window, norm);
+    } else {
+        const ret = vreconstruct(src, width, src_height, dst_height, filter, window, norm);
+        viconvolve(ret, width, dst_height, L, m);
+        return ret;
+    }
+}
+
+/**
+ * Resize an image using a reconstruction filter and an inverse discrete convolution.
+ * @param {TypedArray} src Source image in RGBA format.
+ * @param {number} src_width Source image width.
+ * @param {number} src_height Source image height.
+ * @param {number} dst_width Destination image width.
+ * @param {number} dst_height Destination image height.
+ * @param {(x: number) => number} filter Reconstruction filter function.
+ * @param {number} window Filter function window.
+ * @param {number} norm Normalization constant.
+ * @param {number[]} L Lower matrix coefficients.
+ * @param {number} m Number of lower matrix coefficients.
+ * @param {boolean} nop Boolean flag for a no-op case.
+ * @return {Float64Array} Destination image in RGBA format.
+ */
+export function reconstruct_iconvolve(src, src_width, src_height, dst_width, dst_height, filter, window, norm, L, m, nop) {
+    if (src_width <= 0 || src_height <= 0 || dst_width <= 0 || dst_height <= 0)
+        return new Float64Array();
+
+    if (nop) {
+        if (dst_width === src_width) {
+            if (dst_height === src_height)
+                return new Float64Array(src);
+            return vreconstruct_iconvolve(src, src_width, src_height, dst_height, filter, window, norm, L, m);
+        } else if (dst_height === src_height) {
+            return hreconstruct_iconvolve(src, src_width, src_height, dst_width, filter, window, norm, L, m);
+        }
+    }
+
+    const x_factor = dst_width / src_width;
+    const y_factor = dst_height / src_height;
+
+    if (x_factor >= y_factor) {
+        const temp = vreconstruct_iconvolve(src, src_width, src_height, dst_height, filter, window, norm, L, m);
+        return hreconstruct_iconvolve(temp, src_width, dst_height, dst_width, filter, window, norm, L, m);
+    } else {
+        const temp = hreconstruct_iconvolve(src, src_width, src_height, dst_width, filter, window, norm, L, m);
+        return vreconstruct_iconvolve(temp, dst_width, src_height, dst_height, filter, window, norm, L, m);
+    }
+}
+
+/**
+ * @enum {number}
+ */
+export const Filter = {
+    DEFAULT: 0,
+    NEAREST: 1,
+    AREA: 2,
+    TRIANGLE: 3,
+    HERMITE: 4,
+    B_SPLINE_2: 5,
+    B_SPLINE_3: 6,
+    MITNET: 7,
+    CATROM: 8,
+    MKS_2013: 9,
+    LANCZOS_3: 10,
+    LANCZOS_4: 11,
+    HAMMING_3: 12,
+    HAMMING_4: 13,
+    B_SPLINE_3_I: 14,
+    O_MOMS_3_I: 15
+};
+
+/**
+ * Wrapper for `sample`, `scale`, `reconstruct`, and `reconstruct_iconvolve`.
+ * @param {TypedArray} src Source image in RGBA format.
+ * @param {number} src_width Source image width.
+ * @param {number} src_height Source image height.
+ * @param {number} dst_width Destination image width.
+ * @param {number} dst_height Destination image height.
+ * @param {Filter} filter Resizing method (filter) to be used. Defaults to Mitchell-Netravali.
+ * @return {TypedArray | Float64Array} Destination image in RGBA format. Returns the same type as source image if `filter` is `NEAREST`, otherwise returns Float64Array.
+ */
+export function resize(src, src_width, src_height, dst_width, dst_height, filter) {
+    switch (filter) {
+        case Filter.NEAREST:
+            return sample(src, src_width, src_height, dst_width, dst_height);
+        case Filter.AREA:
+            return scale(src, src_width, src_height, dst_width, dst_height);
+        case Filter.TRIANGLE:
+            return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.Triangle, 1.0, 1.0, 1);
+        case Filter.HERMITE:
+            return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.Hermite, 1.0, 1.0, 1);
+        case Filter.B_SPLINE_2:
+            return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.BSpline2, 1.5, 1.0, 0);
+        case Filter.B_SPLINE_3:
+            return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.BSpline3, 2.0, 1.0, 0);
+        default:
+        case Filter.MITNET:
+            return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.MitNet, 2.0, 1.0, 0);
+        case Filter.CATROM:
+            return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.CatRom, 2.0, 1.0, 1);
+        case Filter.MKS_2013:
+            return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.MKS2013, 2.5, 1.0, 0);
+        case Filter.LANCZOS_3:
+            return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.Lanczos3, 3.0, 1.0, 1);
+        case Filter.LANCZOS_4:
+            return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.Lanczos4, 4.0, 1.0, 1);
+        case Filter.HAMMING_3:
+            return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.Hamming3, 3.0, 1.0, 1);
+        case Filter.HAMMING_4:
+            return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.Hamming4, 4.0, 1.0, 1);
+        case Filter.B_SPLINE_3_I:
+            return reconstruct_iconvolve(src, src_width, src_height, dst_width, dst_height, Filters.pNormBSpline3, 2.0, 6.0, Filters.L_bspline3i, 15, 1);
+        case Filter.O_MOMS_3_I:
+            return reconstruct_iconvolve(src, src_width, src_height, dst_width, dst_height, Filters.pNormOMOMS3, 2.0, 5.25, Filters.L_omoms3, 18, 1);
     }
 }

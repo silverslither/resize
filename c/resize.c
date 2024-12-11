@@ -41,7 +41,7 @@ double *sample(const double *src, s32 src_width, s32 src_height, s32 dst_width, 
     const double x_factor = (double)src_width / dst_width;
     const double y_factor = (double)src_height / dst_height;
 
-    double *dst = calloc(((size_t)dst_width * (size_t)dst_height) << 2, 8);
+    double *dst = malloc(((size_t)dst_width * (size_t)dst_height) << 5);
     if (!dst)
         return NULL;
 
@@ -51,10 +51,10 @@ double *sample(const double *src, s32 src_width, s32 src_height, s32 dst_width, 
         for (s32 x = 0; x < dst_width; x++, dst_pixel += 4) {
             const s32 mapped_x = q_ceil(x_factor * (x + 0.5) - 1.0);
             const s32 src_pixel = (mapped_y + mapped_x) << 2;
-            dst[dst_pixel + 0] += src[src_pixel + 0];
-            dst[dst_pixel + 1] += src[src_pixel + 1];
-            dst[dst_pixel + 2] += src[src_pixel + 2];
-            dst[dst_pixel + 3] += src[src_pixel + 3];
+            dst[dst_pixel + 0] = src[src_pixel + 0];
+            dst[dst_pixel + 1] = src[src_pixel + 1];
+            dst[dst_pixel + 2] = src[src_pixel + 2];
+            dst[dst_pixel + 3] = src[src_pixel + 3];
         }
     }
 
@@ -432,7 +432,7 @@ static void hiconvolve(double *img, s32 width, s32 height, const double *L, int 
 
     const double L_inf = L[m - 1];
     const double v_inv = L_inf / (1.0 + L_inf);
-    s32 f_adj = (width << 2) + 8;
+    const s32 f_adj = (width << 2) + 8;
     double *f = img + 4;
 
     for (s32 y = 0; y < height; y++) {
@@ -485,7 +485,7 @@ static void viconvolve(double *img, s32 width, s32 height, const double *L, int 
 
     const double L_inf = L[m - 1];
     const double v_inv = L_inf / (1.0 + L_inf);
-    s32 adj_width = width << 2;
+    const s32 adj_width = width << 2;
     double *pf = img;
     double *f = pf + adj_width;
 

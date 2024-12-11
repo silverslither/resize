@@ -57,6 +57,7 @@ double *scale(const double *src, s32 src_width, s32 src_height, s32 dst_width, s
  * \param dst_height Destination image height.
  * \param filter Reconstruction filter function.
  * \param window Filter function window.
+ * \param norm Normalization constant.
  * \param nop Boolean flag for a no-op case.
  * \return Destination image in RGBA format, or null pointer if OOM.
  */
@@ -71,6 +72,7 @@ double *reconstruct(const double *src, s32 src_width, s32 src_height, s32 dst_wi
  * \param dst_height Destination image height.
  * \param filter Reconstruction filter function.
  * \param window Filter function window.
+ * \param norm Normalization constant.
  * \param L Lower matrix coefficients.
  * \param m Number of lower matrix coefficients.
  * \param nop Boolean flag for a no-op case.
@@ -85,7 +87,7 @@ double *reconstruct_iconvolve(const double *src, s32 src_width, s32 src_height, 
  * \param src_height Source image height.
  * \param dst_width Destination image width.
  * \param dst_height Destination image height.
- * \param filter Resizing method (filter) to be used. Defaults to the interpolating cubic O-MOMS filter.
+ * \param filter Resizing method (filter) to be used. Defaults to Mitchell-Netravali.
  * \return Destination image in RGBA format, or null pointer if OOM.
  */
 double *resize(const double *src, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height, Filter filter);
