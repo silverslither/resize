@@ -19,17 +19,19 @@ double BSpline2(double x) {
     return 0.5 * x_ * x_;
 }
 
+// Normalized to 6.0
 double BSpline3(double x) {
     if (x <= 1.0)
-        return 0.6666666666666666 - x * x * (1.0 - 0.5 * x);
-    const double x_ = x - 2;
-    return -0.16666666666666666 * x_ * x_ * x_;
+        return 4.0 - x * x * (6.0 - 3.0 * x);
+    const double x_ = 2.0 - x;
+    return x_ * x_ * x_;
 }
 
+// Normalized to 9.0
 double MitNet(double x) {
     if (x <= 1.0)
-        return 0.8888888888888888 - x * x * (2.0 - 1.1666666666666667 * x);
-    return 1.7777777777777777 - x * (3.3333333333333333 - x * (2.0 - 0.3888888888888889 * x));
+        return 8.0 - x * x * (18.0 - 10.5 * x);
+    return 16.0 - x * (30.0 - x * (18.0 - 3.5 * x));
 }
 
 double CatRom(double x) {
@@ -138,12 +140,6 @@ double L_bspline3i[15] = {
     0.26794919243112264,
     0.2679491924311227
 };
-double pNormBSpline3(double x) {
-    if (x <= 1.0)
-        return 4.0 - x * x * (6.0 - 3.0 * x);
-    const double x_ = 2 - x;
-    return x_ * x_ * x_;
-}
 
 double L_omoms3[18] = {
     0.23529411764705882,
@@ -165,7 +161,9 @@ double L_omoms3[18] = {
     0.34413115425505003,
     0.3441311542550502
 };
-double pNormOMOMS3(double x) {
+
+// Normalized to 5.25
+double OMOMS3(double x) {
     if (x <= 1.0)
         return 3.25 + x * (0.375 - x * (5.25 - 2.625 * x));
     return 7.25 - x * (10.625 - x * (5.25 - 0.875 * x));

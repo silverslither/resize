@@ -4,7 +4,6 @@
 #include "include/lodepng/lodepng.h"
 #include "resize.h"
 #include <ctype.h>
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -20,7 +19,7 @@ static unsigned char *f64_to_u8(const double *arr, size_t len) {
     for (size_t i = 0; i < len; i++) {
         double temp = arr[i] > 0.0 ? arr[i] : 0.0;
         temp = temp < 255.0 ? temp : 255.0;
-        out[i] = (unsigned char)nearbyint(temp);
+        out[i] = (unsigned char)__builtin_roundeven(temp);
     }
     return out;
 }

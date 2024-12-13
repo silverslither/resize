@@ -40,6 +40,7 @@ export function sample(src, src_width, src_height, dst_width, dst_height) {
 }
 
 function hscale(src, src_width, height, dst_width) {
+    const max_high_x = src_width - 1;
     const adj_src_width = src_width << 2;
     const adj_dst_width = dst_width << 2;
     const adj_src_area = adj_src_width * height;
@@ -59,16 +60,16 @@ function hscale(src, src_width, height, dst_width) {
 
         if (max_x < min_x) {
             for (let src_pixel = max_x << 2; src_pixel < adj_src_area; src_pixel += adj_src_width, dst_pixel += adj_dst_width) {
-                dst[dst_pixel + 0] += src[src_pixel + 0];
-                dst[dst_pixel + 1] += src[src_pixel + 1];
-                dst[dst_pixel + 2] += src[src_pixel + 2];
-                dst[dst_pixel + 3] += src[src_pixel + 3];
+                dst[dst_pixel + 0] = src[src_pixel + 0];
+                dst[dst_pixel + 1] = src[src_pixel + 1];
+                dst[dst_pixel + 2] = src[src_pixel + 2];
+                dst[dst_pixel + 3] = src[src_pixel + 3];
             }
             continue;
         }
 
         const low_x = Math.max(min_x - 1, 0) << 2;
-        const high_x = Math.min(max_x, src_width - 1) << 2;
+        const high_x = Math.min(max_x, max_high_x) << 2;
         const low_mult = min_x - min_mapped_x;
         const high_mult = max_mapped_x - max_x;
         min_x <<= 2;
@@ -105,6 +106,7 @@ function hscale(src, src_width, height, dst_width) {
 }
 
 function vscale(src, width, src_height, dst_height) {
+    const max_high_y = src_height - 1;
     const adj_width = width << 2;
     const factor = src_height / dst_height;
     const inv_factor = dst_height / src_height;
@@ -122,16 +124,16 @@ function vscale(src, width, src_height, dst_height) {
             const src_offset = adj_width * max_y;
             const src_max = src_offset + adj_width;
             for (let src_pixel = src_offset; src_pixel < src_max; src_pixel += 4, dst_pixel += 4) {
-                dst[dst_pixel + 0] += src[src_pixel + 0];
-                dst[dst_pixel + 1] += src[src_pixel + 1];
-                dst[dst_pixel + 2] += src[src_pixel + 2];
-                dst[dst_pixel + 3] += src[src_pixel + 3];
+                dst[dst_pixel + 0] = src[src_pixel + 0];
+                dst[dst_pixel + 1] = src[src_pixel + 1];
+                dst[dst_pixel + 2] = src[src_pixel + 2];
+                dst[dst_pixel + 3] = src[src_pixel + 3];
             }
             continue;
         }
 
         const low_y = adj_width * Math.max(min_y - 1, 0);
-        const high_y = adj_width * Math.min(max_y, src_height - 1);
+        const high_y = adj_width * Math.min(max_y, max_high_y);
         const low_mult = min_y - min_mapped_y;
         const high_mult = max_mapped_y - max_y;
         min_y *= adj_width;
@@ -201,6 +203,7 @@ export function scale(src, src_width, src_height, dst_width, dst_height) {
 }
 
 function hreconstruct(src, src_width, height, dst_width, filter, window, norm) {
+    const max_s = src_width - 1;
     const adj_src_width = src_width << 2;
     const adj_dst_width = dst_width << 2;
     const adj_dst_area = adj_dst_width * height;
@@ -212,46 +215,16 @@ function hreconstruct(src, src_width, height, dst_width, filter, window, norm) {
     const filter_scale = 1.0 / inv_filter_scale;
     window *= inv_filter_scale;
 
-    const width_end = adj_src_width - 4;
-
     let dst_offset = 0;
     for (let x = 0; x < dst_width; x++, dst_offset += 4) {
         const mapped_x = factor * (x + 0.5) - 0.5;
-        let min_x = Math.ceil(mapped_x - window);
-        let max_x = Math.floor(mapped_x + window);
+        const min_x = Math.max(Math.ceil(mapped_x - window), 0);
+        const max_x = Math.min(Math.floor(mapped_x + window), max_s);
         let weight_total = 0;
-
-        if (min_x < 0) {
-            do {
-                weight_total += filter((mapped_x - (min_x++)) * filter_scale) * filter_scale;
-            } while (min_x < 0);
-
-            for (let src_pixel = 0, dst_pixel = dst_offset; dst_pixel < adj_dst_area; src_pixel += adj_src_width, dst_pixel += adj_dst_width) {
-                dst[dst_pixel + 0] += src[src_pixel + 0] * weight_total;
-                dst[dst_pixel + 1] += src[src_pixel + 1] * weight_total;
-                dst[dst_pixel + 2] += src[src_pixel + 2] * weight_total;
-                dst[dst_pixel + 3] += src[src_pixel + 3] * weight_total;
-            }
-        }
-
-        if (max_x >= src_width) {
-            let weight_accum = 0;
-            do {
-                weight_accum += filter(((max_x--) - mapped_x) * filter_scale) * filter_scale;
-            } while (max_x >= src_width);
-            weight_total += weight_accum;
-
-            for (let src_pixel = width_end, dst_pixel = dst_offset; dst_pixel < adj_dst_area; src_pixel += adj_src_width, dst_pixel += adj_dst_width) {
-                dst[dst_pixel + 0] += src[src_pixel + 0] * weight_accum;
-                dst[dst_pixel + 1] += src[src_pixel + 1] * weight_accum;
-                dst[dst_pixel + 2] += src[src_pixel + 2] * weight_accum;
-                dst[dst_pixel + 3] += src[src_pixel + 3] * weight_accum;
-            }
-        }
 
         let src_offset = min_x << 2;
         for (let s = min_x; s <= max_x; s++, src_offset += 4) {
-            const weight = filter(Math.abs(mapped_x - s) * filter_scale) * filter_scale;
+            const weight = filter(Math.abs(mapped_x - s) * filter_scale);
             weight_total += weight;
 
             for (let src_pixel = src_offset, dst_pixel = dst_offset; dst_pixel < adj_dst_area; src_pixel += adj_src_width, dst_pixel += adj_dst_width) {
@@ -275,6 +248,7 @@ function hreconstruct(src, src_width, height, dst_width, filter, window, norm) {
 }
 
 function vreconstruct(src, width, src_height, dst_height, filter, window, norm) {
+    const max_s = src_height - 1;
     const adj_width = width << 2;
     const factor = src_height / dst_height;
 
@@ -284,47 +258,17 @@ function vreconstruct(src, width, src_height, dst_height, filter, window, norm) 
     const filter_scale = 1.0 / inv_filter_scale;
     window *= inv_filter_scale;
 
-    const height_end = adj_width * (src_height - 1);
-
     let dst_offset = 0;
     let ndst_offset = adj_width;
     for (let y = 0; y < dst_height; y++, dst_offset = ndst_offset, ndst_offset += adj_width) {
         const mapped_y = factor * (y + 0.5) - 0.5;
-        let min_y = Math.ceil(mapped_y - window);
-        let max_y = Math.floor(mapped_y + window);
+        const min_y = Math.max(Math.ceil(mapped_y - window), 0);
+        const max_y = Math.min(Math.floor(mapped_y + window), max_s);
         let weight_total = 0;
-
-        if (min_y < 0) {
-            do {
-                weight_total += filter((mapped_y - (min_y++)) * filter_scale) * filter_scale;
-            } while (min_y < 0);
-
-            for (let src_pixel = 0, dst_pixel = dst_offset; dst_pixel < ndst_offset; src_pixel += 4, dst_pixel += 4) {
-                dst[dst_pixel + 0] += src[src_pixel + 0] * weight_total;
-                dst[dst_pixel + 1] += src[src_pixel + 1] * weight_total;
-                dst[dst_pixel + 2] += src[src_pixel + 2] * weight_total;
-                dst[dst_pixel + 3] += src[src_pixel + 3] * weight_total;
-            }
-        }
-
-        if (max_y >= src_height) {
-            let weight_accum = 0;
-            do {
-                weight_accum += filter(((max_y--) - mapped_y) * filter_scale) * filter_scale;
-            } while (max_y >= src_height);
-            weight_total += weight_accum;
-
-            for (let src_pixel = height_end, dst_pixel = dst_offset; dst_pixel < ndst_offset; src_pixel += 4, dst_pixel += 4) {
-                dst[dst_pixel + 0] += src[src_pixel + 0] * weight_accum;
-                dst[dst_pixel + 1] += src[src_pixel + 1] * weight_accum;
-                dst[dst_pixel + 2] += src[src_pixel + 2] * weight_accum;
-                dst[dst_pixel + 3] += src[src_pixel + 3] * weight_accum;
-            }
-        }
 
         let src_offset = adj_width * min_y;
         for (let s = min_y; s <= max_y; s++, src_offset += adj_width) {
-            const weight = filter(Math.abs(mapped_y - s) * filter_scale) * filter_scale;
+            const weight = filter(Math.abs(mapped_y - s) * filter_scale);
             weight_total += weight;
 
             for (let src_pixel = src_offset, dst_pixel = dst_offset; dst_pixel < ndst_offset; src_pixel += 4, dst_pixel += 4) {
@@ -620,8 +564,8 @@ export function resize(src, src_width, src_height, dst_width, dst_height, filter
         case Filter.HAMMING_4:
             return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.Hamming4, 4.0, 1.0, 1);
         case Filter.B_SPLINE_3_I:
-            return reconstruct_iconvolve(src, src_width, src_height, dst_width, dst_height, Filters.pNormBSpline3, 2.0, 6.0, Filters.L_bspline3i, 15, 1);
+            return reconstruct_iconvolve(src, src_width, src_height, dst_width, dst_height, Filters.BSpline3, 2.0, 6.0, Filters.L_bspline3i, 15, 1);
         case Filter.O_MOMS_3_I:
-            return reconstruct_iconvolve(src, src_width, src_height, dst_width, dst_height, Filters.pNormOMOMS3, 2.0, 5.25, Filters.L_omoms3, 18, 1);
+            return reconstruct_iconvolve(src, src_width, src_height, dst_width, dst_height, Filters.OMOMS3, 2.0, 5.25, Filters.L_omoms3, 18, 1);
     }
 }

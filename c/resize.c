@@ -9,7 +9,6 @@
 static inline s32 q_floor(double x) {
     return (s32)x;
 }
-
 static inline s32 q_ceil(double x) {
     const s32 r = (s32)x;
     return r + (x > (double)r);
@@ -25,18 +24,20 @@ static inline s32 max(s32 x, s32 y) {
     return x > y ? x : y;
 }
 
+static double *imgcpy(const double *src, s32 width, s32 height) {
+    size_t size = ((size_t)width * (size_t)height) << 5;
+    double *dst = malloc(size);
+    if (!dst)
+        return NULL;
+    memcpy(dst, src, size);
+    return dst;
+}
+
 double *sample(const double *src, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height) {
     if (src_width <= 0 || src_height <= 0 || dst_width <= 0 || dst_height <= 0)
         return NULL;
-
-    if (src_width == dst_width && src_height == dst_height) {
-        size_t size = ((size_t)src_width * (size_t)src_height) << 5;
-        double *ret = malloc(size);
-        if (!ret)
-            return NULL;
-        memcpy(ret, src, size);
-        return ret;
-    }
+    if (src_width == dst_width && src_height == dst_height)
+        return imgcpy(src, src_width, src_height);
 
     const double x_factor = (double)src_width / dst_width;
     const double y_factor = (double)src_height / dst_height;
@@ -62,6 +63,7 @@ double *sample(const double *src, s32 src_width, s32 src_height, s32 dst_width, 
 }
 
 static double *hscale(const double *src, s32 src_width, s32 height, s32 dst_width) {
+    const s32 max_high_x = src_width - 1;
     const s32 adj_src_width = src_width << 2;
     const s32 adj_dst_width = dst_width << 2;
     const s32 adj_src_area = adj_src_width * height;
@@ -83,16 +85,16 @@ static double *hscale(const double *src, s32 src_width, s32 height, s32 dst_widt
 
         if (max_x < min_x) {
             for (s32 src_pixel = max_x << 2; src_pixel < adj_src_area; src_pixel += adj_src_width, dst_pixel += adj_dst_width) {
-                dst[dst_pixel + 0] += src[src_pixel + 0];
-                dst[dst_pixel + 1] += src[src_pixel + 1];
-                dst[dst_pixel + 2] += src[src_pixel + 2];
-                dst[dst_pixel + 3] += src[src_pixel + 3];
+                dst[dst_pixel + 0] = src[src_pixel + 0];
+                dst[dst_pixel + 1] = src[src_pixel + 1];
+                dst[dst_pixel + 2] = src[src_pixel + 2];
+                dst[dst_pixel + 3] = src[src_pixel + 3];
             }
             continue;
         }
 
         const s32 low_x = max(min_x - 1, 0) << 2;
-        const s32 high_x = min(max_x, src_width - 1) << 2;
+        const s32 high_x = min(max_x, max_high_x) << 2;
         const double low_mult = (double)min_x - min_mapped_x;
         const double high_mult = max_mapped_x - (double)max_x;
         min_x <<= 2;
@@ -129,6 +131,7 @@ static double *hscale(const double *src, s32 src_width, s32 height, s32 dst_widt
 }
 
 static double *vscale(const double *src, s32 width, s32 src_height, s32 dst_height) {
+    const s32 max_high_y = src_height - 1;
     const s32 adj_width = width << 2;
     const double factor = (double)src_height / dst_height;
     const double inv_factor = (double)dst_height / src_height;
@@ -148,16 +151,16 @@ static double *vscale(const double *src, s32 width, s32 src_height, s32 dst_heig
             const s32 src_offset = adj_width * max_y;
             const s32 src_max = src_offset + adj_width;
             for (s32 src_pixel = src_offset; src_pixel < src_max; src_pixel += 4, dst_pixel += 4) {
-                dst[dst_pixel + 0] += src[src_pixel + 0];
-                dst[dst_pixel + 1] += src[src_pixel + 1];
-                dst[dst_pixel + 2] += src[src_pixel + 2];
-                dst[dst_pixel + 3] += src[src_pixel + 3];
+                dst[dst_pixel + 0] = src[src_pixel + 0];
+                dst[dst_pixel + 1] = src[src_pixel + 1];
+                dst[dst_pixel + 2] = src[src_pixel + 2];
+                dst[dst_pixel + 3] = src[src_pixel + 3];
             }
             continue;
         }
 
         const s32 low_y = adj_width * max(min_y - 1, 0);
-        const s32 high_y = adj_width * min(max_y, src_height - 1);
+        const s32 high_y = adj_width * min(max_y, max_high_y);
         const double low_mult = (double)min_y - min_mapped_y;
         const double high_mult = max_mapped_y - (double)max_y;
         min_y *= adj_width;
@@ -198,14 +201,8 @@ double *scale(const double *src, s32 src_width, s32 src_height, s32 dst_width, s
         return NULL;
 
     if (dst_width == src_width) {
-        if (dst_height == src_height) {
-            size_t size = ((size_t)src_width * (size_t)src_height) << 5;
-            double *ret = malloc(size);
-            if (!ret)
-                return NULL;
-            memcpy(ret, src, size);
-            return ret;
-        }
+        if (dst_height == src_height)
+            return imgcpy(src, src_width, src_height);
         return vscale(src, src_width, src_height, dst_height);
     } else if (dst_height == src_height) {
         return hscale(src, src_width, src_height, dst_width);
@@ -234,6 +231,7 @@ double *scale(const double *src, s32 src_width, s32 src_height, s32 dst_width, s
 }
 
 static double *hreconstruct(const double *src, s32 src_width, s32 height, s32 dst_width, double (*filter)(double), double window, double norm) {
+    const s32 max_s = src_width - 1;
     const s32 adj_src_width = src_width << 2;
     const s32 adj_dst_width = dst_width << 2;
     const s32 adj_dst_area = adj_dst_width * height;
@@ -247,46 +245,16 @@ static double *hreconstruct(const double *src, s32 src_width, s32 height, s32 ds
     const double filter_scale = 1.0 / inv_filter_scale;
     window *= inv_filter_scale;
 
-    const s32 width_end = adj_src_width - 4;
-
     s32 dst_offset = 0;
     for (s32 x = 0; x < dst_width; x++, dst_offset += 4) {
         const double mapped_x = factor * (x + 0.5) - 0.5;
-        s32 min_x = q_ceil(mapped_x - window);
-        s32 max_x = q_floor(mapped_x + window);
+        const s32 min_x = max(q_ceil(mapped_x - window), 0);
+        const s32 max_x = min(q_floor(mapped_x + window), max_s);
         double weight_total = 0;
-
-        if (min_x < 0) {
-            do {
-                weight_total += filter((mapped_x - (min_x++)) * filter_scale) * filter_scale;
-            } while (min_x < 0);
-
-            for (s32 src_pixel = 0, dst_pixel = dst_offset; dst_pixel < adj_dst_area; src_pixel += adj_src_width, dst_pixel += adj_dst_width) {
-                dst[dst_pixel + 0] += src[src_pixel + 0] * weight_total;
-                dst[dst_pixel + 1] += src[src_pixel + 1] * weight_total;
-                dst[dst_pixel + 2] += src[src_pixel + 2] * weight_total;
-                dst[dst_pixel + 3] += src[src_pixel + 3] * weight_total;
-            }
-        }
-
-        if (max_x >= src_width) {
-            double weight_accum = 0;
-            do {
-                weight_accum += filter(((max_x--) - mapped_x) * filter_scale) * filter_scale;
-            } while (max_x >= src_width);
-            weight_total += weight_accum;
-
-            for (s32 src_pixel = width_end, dst_pixel = dst_offset; dst_pixel < adj_dst_area; src_pixel += adj_src_width, dst_pixel += adj_dst_width) {
-                dst[dst_pixel + 0] += src[src_pixel + 0] * weight_accum;
-                dst[dst_pixel + 1] += src[src_pixel + 1] * weight_accum;
-                dst[dst_pixel + 2] += src[src_pixel + 2] * weight_accum;
-                dst[dst_pixel + 3] += src[src_pixel + 3] * weight_accum;
-            }
-        }
 
         s32 src_offset = min_x << 2;
         for (s32 s = min_x; s <= max_x; s++, src_offset += 4) {
-            const double weight = filter(fabs(mapped_x - s) * filter_scale) * filter_scale;
+            const double weight = filter(fabs(mapped_x - s) * filter_scale);
             weight_total += weight;
 
             for (s32 src_pixel = src_offset, dst_pixel = dst_offset; dst_pixel < adj_dst_area; src_pixel += adj_src_width, dst_pixel += adj_dst_width) {
@@ -310,6 +278,7 @@ static double *hreconstruct(const double *src, s32 src_width, s32 height, s32 ds
 }
 
 static double *vreconstruct(const double *src, s32 width, s32 src_height, s32 dst_height, double (*filter)(double), double window, double norm) {
+    const s32 max_s = src_height - 1;
     const s32 adj_width = width << 2;
     const double factor = (double)src_height / dst_height;
 
@@ -321,47 +290,17 @@ static double *vreconstruct(const double *src, s32 width, s32 src_height, s32 ds
     const double filter_scale = 1.0 / inv_filter_scale;
     window *= inv_filter_scale;
 
-    const s32 height_end = adj_width * (src_height - 1);
-
     s32 dst_offset = 0;
     s32 ndst_offset = adj_width;
     for (s32 y = 0; y < dst_height; y++, dst_offset = ndst_offset, ndst_offset += adj_width) {
         const double mapped_y = factor * (y + 0.5) - 0.5;
-        s32 min_y = q_ceil(mapped_y - window);
-        s32 max_y = q_floor(mapped_y + window);
+        const s32 min_y = max(q_ceil(mapped_y - window), 0);
+        const s32 max_y = min(q_floor(mapped_y + window), max_s);
         double weight_total = 0;
-
-        if (min_y < 0) {
-            do {
-                weight_total += filter((mapped_y - (min_y++)) * filter_scale) * filter_scale;
-            } while (min_y < 0);
-
-            for (s32 src_pixel = 0, dst_pixel = dst_offset; dst_pixel < ndst_offset; src_pixel += 4, dst_pixel += 4) {
-                dst[dst_pixel + 0] += src[src_pixel + 0] * weight_total;
-                dst[dst_pixel + 1] += src[src_pixel + 1] * weight_total;
-                dst[dst_pixel + 2] += src[src_pixel + 2] * weight_total;
-                dst[dst_pixel + 3] += src[src_pixel + 3] * weight_total;
-            }
-        }
-
-        if (max_y >= src_height) {
-            double weight_accum = 0;
-            do {
-                weight_accum += filter(((max_y--) - mapped_y) * filter_scale) * filter_scale;
-            } while (max_y >= src_height);
-            weight_total += weight_accum;
-
-            for (s32 src_pixel = height_end, dst_pixel = dst_offset; dst_pixel < ndst_offset; src_pixel += 4, dst_pixel += 4) {
-                dst[dst_pixel + 0] += src[src_pixel + 0] * weight_accum;
-                dst[dst_pixel + 1] += src[src_pixel + 1] * weight_accum;
-                dst[dst_pixel + 2] += src[src_pixel + 2] * weight_accum;
-                dst[dst_pixel + 3] += src[src_pixel + 3] * weight_accum;
-            }
-        }
 
         s32 src_offset = adj_width * min_y;
         for (s32 s = min_y; s <= max_y; s++, src_offset += adj_width) {
-            const double weight = filter(fabs(mapped_y - s) * filter_scale) * filter_scale;
+            const double weight = filter(fabs(mapped_y - s) * filter_scale);
             weight_total += weight;
 
             for (s32 src_pixel = src_offset, dst_pixel = dst_offset; dst_pixel < ndst_offset; src_pixel += 4, dst_pixel += 4) {
@@ -390,14 +329,8 @@ double *reconstruct(const double *src, s32 src_width, s32 src_height, s32 dst_wi
 
     if (nop) {
         if (dst_width == src_width) {
-            if (dst_height == src_height) {
-                size_t size = ((size_t)src_width * (size_t)src_height) << 5;
-                double *ret = malloc(size);
-                if (!ret)
-                    return NULL;
-                memcpy(ret, src, size);
-                return ret;
-            }
+            if (dst_height == src_height)
+                return imgcpy(src, src_width, src_height);
             return vreconstruct(src, src_width, src_height, dst_height, filter, window, norm);
         } else if (dst_height == src_height) {
             return hreconstruct(src, src_width, src_height, dst_width, filter, window, norm);
@@ -583,14 +516,8 @@ double *reconstruct_iconvolve(const double *src, s32 src_width, s32 src_height, 
 
     if (nop) {
         if (dst_width == src_width) {
-            if (dst_height == src_height) {
-                size_t size = ((size_t)src_width * (size_t)src_height) << 5;
-                double *ret = malloc(size);
-                if (!ret)
-                    return NULL;
-                memcpy(ret, src, size);
-                return ret;
-            }
+            if (dst_height == src_height)
+                return imgcpy(src, src_width, src_height);
             return vreconstruct_iconvolve(src, src_width, src_height, dst_height, filter, window, norm, L, m);
         } else if (dst_height == src_height) {
             return hreconstruct_iconvolve(src, src_width, src_height, dst_width, filter, window, norm, L, m);
@@ -649,8 +576,8 @@ double *resize(const double *src, s32 src_width, s32 src_height, s32 dst_width, 
     case HAMMING_4:
         return reconstruct(src, src_width, src_height, dst_width, dst_height, Hamming4, 4.0, 1.0, 1);
     case B_SPLINE_3_I:
-        return reconstruct_iconvolve(src, src_width, src_height, dst_width, dst_height, pNormBSpline3, 2.0, 6.0, L_bspline3i, 15, 1);
+        return reconstruct_iconvolve(src, src_width, src_height, dst_width, dst_height, BSpline3, 2.0, 6.0, L_bspline3i, 15, 1);
     case O_MOMS_3_I:
-        return reconstruct_iconvolve(src, src_width, src_height, dst_width, dst_height, pNormOMOMS3, 2.0, 5.25, L_omoms3, 18, 1);
+        return reconstruct_iconvolve(src, src_width, src_height, dst_width, dst_height, OMOMS3, 2.0, 5.25, L_omoms3, 18, 1);
     }
 }

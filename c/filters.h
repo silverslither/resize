@@ -21,9 +21,8 @@ double Hamming3(double x);
 double Hamming4(double x);
 
 extern double L_bspline3i[15];
-double pNormBSpline3(double x);
 
 extern double L_omoms3[18];
-double pNormOMOMS3(double x);
+double OMOMS3(double x);
 
 #endif
