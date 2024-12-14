@@ -13,6 +13,8 @@ typedef enum Filter {
     AREA,
     TRIANGLE,
     HERMITE,
+    LAGRANGE_2,
+    LAGRANGE_3,
     B_SPLINE_2,
     B_SPLINE_3,
     MITNET,

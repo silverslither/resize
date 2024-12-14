@@ -31,6 +31,8 @@ Filter parseFilter(char *str) {
         "AREA",
         "TRIANGLE",
         "HERMITE",
+        "LAGRANGE2",
+        "LAGRANGE3",
         "BSPLINE2",
         "BSPLINE3",
         "MITNET",

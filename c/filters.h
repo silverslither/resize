@@ -6,6 +6,9 @@
 double Triangle(double x);
 double Hermite(double x);
 
+double Lagrange2(double x);
+double Lagrange3(double x);
+
 double BSpline2(double x);
 double BSpline3(double x);
 

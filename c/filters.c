@@ -12,6 +12,19 @@ double Hermite(double x) {
     return 1.0 - x * x * (3.0 - 2.0 * x);
 }
 
+double Lagrange2(double x) {
+    if (x <= 0.5)
+        return 1.0 - x * x;
+    return 1.0 - x * (1.5 - 0.5 * x);
+}
+
+// Normalized to 3.0
+double Lagrange3(double x) {
+    if (x <= 1.0)
+        return 3.0 - x * (1.5 + x * (3.0 - 1.5 * x));
+    return 3.0 - x * (5.5 - x * (3.0 - 0.5 * x));
+}
+
 double BSpline2(double x) {
     if (x <= 0.5)
         return 0.75 - x * x;

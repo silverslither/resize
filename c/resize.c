@@ -556,6 +556,10 @@ double *resize(const double *src, s32 src_width, s32 src_height, s32 dst_width, 
         return reconstruct(src, src_width, src_height, dst_width, dst_height, Triangle, 1.0, 1.0, 1);
     case HERMITE:
         return reconstruct(src, src_width, src_height, dst_width, dst_height, Hermite, 1.0, 1.0, 1);
+    case LAGRANGE_2:
+        return reconstruct(src, src_width, src_height, dst_width, dst_height, Lagrange2, 1.5, 1.0, 1);
+    case LAGRANGE_3:
+        return reconstruct(src, src_width, src_height, dst_width, dst_height, Lagrange3, 2.0, 1.0, 1);
     case B_SPLINE_2:
         return reconstruct(src, src_width, src_height, dst_width, dst_height, BSpline2, 1.5, 1.0, 0);
     case B_SPLINE_3:
