@@ -72,7 +72,7 @@ export const Lanczos3 = (x) => {
     if (x < 1.0e-8)
         return 1.0;
     const round_x = Math.floor(x + 0.5);
-    const sign = (x << 31 >> 31) | 1;
+    const sign = (round_x << 31 >> 31) | 1;
     const poly_x = sign * (x - round_x);
     return lsin3(poly_x) * lsin3w(x > 1.5 ? 3.0 - x : x) / (x * x);
 };
@@ -91,7 +91,7 @@ export const Lanczos4 = (x) => {
     if (x < 1.0e-8)
         return 1.0;
     const round_x = (int)(x + 0.5);
-    const sign = (x << 31 >> 31) | 1;
+    const sign = (round_x << 31 >> 31) | 1;
     const poly_x = sign * (x - round_x);
     return lsin4(poly_x) * lsin4w(x > 2.0 ? 4.0 - x : x) / (x * x);
 };
@@ -111,10 +111,11 @@ export const Hamming3 = (x) => {
     if (x < 1.0e-8)
         return 1.0;
     const round_x = (int)(x + 0.5);
-    const sign = (x << 31 >> 31) | 1;
+    const sign = (round_x << 31 >> 31) | 1;
     const poly_x = sign * (x - round_x);
-    const w = copysign(hcos3w(x > 1.5 ? x - 3.0 : x), 1.5 - x);
-    return hsin(poly_x) * (0.53836 + w) / x;
+    const flip = x > 1.5;
+    const w = hcos3w(flip ? x - 3.0 : x);
+    return hsin(poly_x) * (0.53836 + (flip ? -w : w)) / x;
 };
 
 const hcos4w = (x) => {
@@ -126,10 +127,11 @@ export const Hamming4 = (x) => {
     if (x < 1.0e-8)
         return 1.0;
     const round_x = (int)(x + 0.5);
-    const sign = (x << 31 >> 31) | 1;
+    const sign = (round_x << 31 >> 31) | 1;
     const poly_x = sign * (x - round_x);
-    const w = copysign(hcos4w(x > 2.0 ? x - 4.0 : x), 2.0 - x);
-    return hsin(poly_x) * (0.53836 + w) / x;
+    const flip = x > 2.0;
+    const w = hcos4w(flip ? x - 4.0 : x);
+    return hsin(poly_x) * (0.53836 + (flip ? -w : w)) / x;
 };
 
 export const L_bspline3i = [
