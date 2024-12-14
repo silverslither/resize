@@ -13,7 +13,7 @@ $CC $CFLAGS -o lodepng.o include/lodepng/lodepng.c
 $CC $CFLAGS filters.c
 $CC $CFLAGS resize.c
 $CC $CFLAGS helper.c
-$CC $CFLAGS cli.c
+$CC $CFLAGS example.c
 
 $CC -o resize *.o
 
