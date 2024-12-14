@@ -511,17 +511,19 @@ export const Filter = {
     AREA: 2,
     TRIANGLE: 3,
     HERMITE: 4,
-    B_SPLINE_2: 5,
-    B_SPLINE_3: 6,
-    MITNET: 7,
-    CATROM: 8,
-    MKS_2013: 9,
-    LANCZOS_3: 10,
-    LANCZOS_4: 11,
-    HAMMING_3: 12,
-    HAMMING_4: 13,
-    B_SPLINE_3_I: 14,
-    O_MOMS_3_I: 15
+    LAGRANGE_2: 5,
+    LAGRANGE_3: 6,
+    B_SPLINE_2: 7,
+    B_SPLINE_3: 8,
+    MITNET: 9,
+    CATROM: 10,
+    MKS_2013: 11,
+    LANCZOS_3: 12,
+    LANCZOS_4: 13,
+    HAMMING_3: 14,
+    HAMMING_4: 15,
+    B_SPLINE_3_I: 16,
+    O_MOMS_3_I: 17
 };
 
 /**
@@ -544,6 +546,10 @@ export function resize(src, src_width, src_height, dst_width, dst_height, filter
             return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.Triangle, 1.0, 1.0, 1);
         case Filter.HERMITE:
             return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.Hermite, 1.0, 1.0, 1);
+        case Filter.LAGRANGE_2:
+            return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.Lagrange2, 1.5, 1.0, 1);
+        case Filter.LAGRANGE_3:
+            return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.Lagrange3, 2.0, 1.0, 1);
         case Filter.B_SPLINE_2:
             return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.BSpline2, 1.5, 1.0, 0);
         case Filter.B_SPLINE_3:

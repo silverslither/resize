@@ -8,6 +8,19 @@ export const Hermite = (x) => {
     return 1.0 - x * x * (3.0 - 2.0 * x);
 };
 
+export const Lagrange2 = (x) => {
+    if (x <= 0.5)
+        return 1.0 - x * x;
+    return 1.0 - x * (1.5 - 0.5 * x);
+}
+
+// Normalized to 3.0
+export const Lagrange3 = (x) => {
+    if (x <= 1.0)
+        return 3.0 - x * (1.5 + x * (3.0 - 1.5 * x));
+    return 3.0 - x * (5.5 - x * (3.0 - 0.5 * x));
+}
+
 export const BSpline2 = (x) => {
     if (x <= 0.5)
         return 0.75 - x * x;
