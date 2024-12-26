@@ -1,6 +1,28 @@
 #include "colour.h"
 #include <math.h>
 
+void mul_alpha(double *arr, size_t len) {
+    const double *end = arr + len;
+    while (arr < end) {
+        arr[0] *= arr[3];
+        arr[1] *= arr[3];
+        arr[2] *= arr[3];
+        arr += 4;
+    }
+}
+
+void div_alpha(double *arr, size_t len) {
+    const double *end = arr + len;
+    while (arr < end) {
+        if (arr[3] != 0) {
+            arr[0] /= arr[3];
+            arr[1] /= arr[3];
+            arr[2] /= arr[3];
+        }
+        arr += 4;
+    }
+}
+
 double srgb_encode(double x) {
     if (x > 0.003130668442500634)
         return 1.055 * pow(x, 0.4166666666666667) - 0.055;

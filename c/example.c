@@ -1,7 +1,6 @@
 // Copyright (c) 2024 silverslither.
 
 #include "colour.h"
-#include "helper.h"
 #include "include/lodepng/lodepng.h"
 #include "resize.h"
 #include <ctype.h>
@@ -96,27 +95,33 @@ Filter parseFilter(char *str) {
     return 0;
 }
 
-double parseSigmoidizationBeta(char *str) {
+SigmoidizationParams *parseSigmoidizationBeta(char *str, SigmoidizationParams *params) {
     int len = strlen(str);
-    double num;
+    double beta;
     int pos;
 
-    if (!sscanf(str, "%lf%n", &num, &pos) || num < 0 || pos != len)
-        return -1.0;
+    if (!sscanf(str, "%lf%n", &beta, &pos) || beta < 0 || pos != len) {
+        fprintf(stderr, "warning: invalid sigmoidization contrast '%s'\n", str);
+        return NULL;
+    }
 
-    return num;
+    if (beta == 0)
+        return NULL;
+
+    get_sigmoidization_params(beta, params);
+    return params;
 }
 
 int main(int argc, char **argv) {
     if (argc < 5) {
-        fprintf(stderr, "usage: resize <input> <width> <height> <output> [options]\n");
+        fprintf(stderr, "usage: resize <input> <width> <height> <output> [-f filter] [-l] [-s contrast]\n");
         return 1;
     }
 
     // options declaration
     Filter filter = DEFAULT;
     int linearize = 0;
-    SigmoidizationParams *sigParams = NULL;
+    SigmoidizationParams *sigParamsPtr = NULL;
     SigmoidizationParams _sigParams;
 
     if (argc == 5)
@@ -125,17 +130,19 @@ int main(int argc, char **argv) {
     // options parsing
     for (int i = 5; i < argc; i++) {
         const char *str = argv[i];
-        if (str[0] != '-') {
+        if (str[0] != '-' || str[1] == 0 || str[2] != 0) {
+invalid:
             fprintf(stderr, "warning: invalid argument '%s'\n", str);
             continue;
         }
 
         switch (str[1]) {
         case 'f':
-            if (i++ == argc - 1)
+            if (i++ == argc - 1) {
                 fprintf(stderr, "warning: no filter given\n");
-            else
-                filter = parseFilter(argv[i]);
+                break;
+            }
+            filter = parseFilter(argv[i]);
             break;
         case 'l':
             linearize = 1;
@@ -143,18 +150,12 @@ int main(int argc, char **argv) {
         case 's':
             if (i++ == argc - 1) {
                 fprintf(stderr, "warning: no sigmoidization contrast given\n");
-            } else {
-                double beta = parseSigmoidizationBeta(argv[i]);
-                if (beta == -1.0) {
-                    fprintf(stderr, "warning: invalid sigmoidization contrast '%s'\n", argv[i]);
-                    break;
-                }
-                get_sigmoidization_params(beta, &_sigParams);
-                sigParams = &_sigParams;
+                break;
             }
+            sigParamsPtr = parseSigmoidizationBeta(argv[i], &_sigParams);
             break;
         default:
-            fprintf(stderr, "warning: invalid argument '%s'\n", str);
+            goto invalid;
         }
     }
 
@@ -188,17 +189,17 @@ no_options:;
     }
 
     // resize
-    double *img = u8_to_f64(_img, area, linearize, sigParams);
+    double *img = u8_to_f64(_img, area, linearize, sigParamsPtr);
     free(_img);
-    multiplyAlpha(img, area);
+    mul_alpha(img, area);
 
     double *resized = resize(img, src_width, src_height, dst_width, dst_height, filter);
     free(img);
 
     area = ((size_t)dst_width * (size_t)dst_height) << 2;
-    divideAlpha(resized, area);
+    div_alpha(resized, area);
 
-    _img = f64_to_u8(resized, area, linearize, sigParams);
+    _img = f64_to_u8(resized, area, linearize, sigParamsPtr);
     free(resized);
 
     // output img

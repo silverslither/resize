@@ -1,6 +1,8 @@
 #ifndef RESIZE_COLOUR
 #define RESIZE_COLOUR
 
+#include <stddef.h>
+
 typedef struct SigmoidizationParams {
     double beta;
     double inv_beta;
@@ -8,6 +10,9 @@ typedef struct SigmoidizationParams {
     double b;
     double c;
 } SigmoidizationParams;
+
+void mul_alpha(double *arr, size_t len);
+void div_alpha(double *arr, size_t len);
 
 double srgb_encode(double x);
 double srgb_decode(double x);
