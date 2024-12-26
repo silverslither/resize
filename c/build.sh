@@ -12,10 +12,11 @@ CFLAGS="-std=c99 -c -O3 -march=native -Wall -Wextra -Wpedantic -Wshadow -Wfloat-
 $CC $CFLAGS -o lodepng.o include/lodepng/lodepng.c
 $CC $CFLAGS filters.c
 $CC $CFLAGS resize.c
+$CC $CFLAGS colour.c
 $CC $CFLAGS helper.c
 $CC $CFLAGS example.c
 
-$CC -o resize *.o
+$CC -lm -o resize *.o
 
 mkdir -p build
 mv resize build

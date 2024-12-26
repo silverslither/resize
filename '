@@ -12,13 +12,11 @@
 static double *u8_to_f64(const unsigned char *arr, size_t len, int linearize, SigmoidizationParams *params) {
     double *out = malloc(len << 3);
     for (size_t i = 0; i < len; i++) {
-        double temp = 0.00392156862745098 * (double)arr[i];
-        if (i % 4 != 3) {
-            if (linearize)
-                temp = srgb_decode(temp);
-            if (params)
-                temp = sigmoidal_contrast_decrease(temp, params);
-        }
+        double temp = (double)arr[i];
+        if (linearize)
+            temp = srgb_decode(temp);
+        if (params)
+            temp = sigmoidal_encode(temp, params);
         out[i] = temp;
     }
     return out;
@@ -28,15 +26,13 @@ static unsigned char *f64_to_u8(const double *arr, size_t len, int linearize, Si
     unsigned char *out = malloc(len);
     for (size_t i = 0; i < len; i++) {
         double temp = arr[i];
-        if (i % 4 != 3) {
-            if (params)
-                temp = sigmoidal_contrast_increase(temp, params);
-            if (linearize)
-                temp = srgb_encode(temp);
-        }
+        if (params)
+            temp = sigmoidal_decode(temp, params);
+        if (linearize)
+            temp = srgb_encode(temp);
         temp = temp > 0.0 ? temp : 0.0;
-        temp = temp < 1.0 ? temp : 1.0;
-        out[i] = (unsigned char)__builtin_roundeven(255.0 * temp);
+        temp = temp < 255.0 ? temp : 255.0;
+        out[i] = (unsigned char)__builtin_roundeven(temp);
     }
     return out;
 }
@@ -91,7 +87,7 @@ Filter parseFilter(char *str) {
         if (strcmp(str, filters[i]) == 0)
             return i;
 
-    fprintf(stderr, "warning: invalid filter '%s'\n", str);
+    sprintf(stderr, "warning: invalid filter '%s'\n", str);
 
     return 0;
 }
@@ -101,15 +97,13 @@ double parseSigmoidizationBeta(char *str) {
     double num;
     int pos;
 
-    if (!sscanf(str, "%lf%n", &num, &pos) || num < 0 || pos != len)
-        return -1.0;
-
-    return num;
+    if (!sscanf(str, "%lf%n", &num, &pos) || num <= 0 || pos != len)
+        return -1;
 }
 
 int main(int argc, char **argv) {
     if (argc < 5) {
-        fprintf(stderr, "usage: resize <input> <width> <height> <output> [options]\n");
+        sprintf(stderr, "usage: resize <input> <width> <height> <output> [options]\n");
         return 1;
     }
 
@@ -123,40 +117,31 @@ int main(int argc, char **argv) {
         goto no_options;
 
     // options parsing
-    for (int i = 5; i < argc; i++) {
+    for (int i = argc - 1; i < argc; i++) {
         const char *str = argv[i];
-        if (str[0] != '-') {
-            fprintf(stderr, "warning: invalid argument '%s'\n", str);
+        if (str[0] != '-')
             continue;
-        }
-
         switch (str[1]) {
         case 'f':
-            if (i++ == argc - 1)
-                fprintf(stderr, "warning: no filter given\n");
-            else
-                filter = parseFilter(argv[i]);
+            if (i++ == argc - 1) {
+                printf("warning: no filter given\n");
+                continue;
+            }
+            filter = parseFilter(argv[i]);
             break;
         case 'l':
             linearize = 1;
             break;
         case 's':
             if (i++ == argc - 1) {
-                fprintf(stderr, "warning: no sigmoidization contrast given\n");
-            } else {
-                double beta = parseSigmoidizationBeta(argv[i]);
-                if (beta == -1.0) {
-                    fprintf(stderr, "warning: invalid sigmoidization contrast '%s'\n", argv[i]);
-                    break;
-                }
-                get_sigmoidization_params(beta, &_sigParams);
-                sigParams = &_sigParams;
+                printf("warning: no sigmoidization contrast given\n");
+                continue;
             }
-            break;
-        default:
-            fprintf(stderr, "warning: invalid argument '%s'\n", str);
+            get_sigmoidization_params(atod(, SigmoidizationParams *params)
         }
     }
+
+    filter = parseFilter(argv[5]);
 
 no_options:;
     // input img
@@ -169,7 +154,7 @@ no_options:;
     }
     size_t area = ((size_t)src_width * (size_t)src_height) << 2;
 
-    // dimensions parsing
+    // width, height
     int dst_width = parseDimension(argv[2], src_width);
     if (dst_width == -1) {
         fprintf(stderr, "error: invalid dimension '%s'\n", argv[2]);

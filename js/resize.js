@@ -4,12 +4,12 @@ import * as Filters from "./filters.js";
 
 /**
  * Resample an image using nearest neighbor interpolation.
- * @param {TypedArray} src Source image in RGBA format.
+ * @param {TypedArray} src Source image in a 4-channel format.
  * @param {number} src_width Source image width.
  * @param {number} src_height Source image height.
  * @param {number} dst_width Destination image width.
  * @param {number} dst_height Destination image height.
- * @returns {TypedArray} Destination image in RGBA format, with the same type as source image.
+ * @returns {TypedArray} Destination image in a 4-channel format, with the same type as source image.
  */
 export function sample(src, src_width, src_height, dst_width, dst_height) {
     if (src_width <= 0 || src_height <= 0 || dst_width <= 0 || dst_height <= 0)
@@ -171,12 +171,12 @@ function vscale(src, width, src_height, dst_height) {
 
 /**
  * Resize an image using area averaging / pixel mixing.
- * @param {TypedArray} src Source image in RGBA format.
+ * @param {TypedArray} src Source image in a 4-channel format.
  * @param {number} src_width Source image width.
  * @param {number} src_height Source image height.
  * @param {number} dst_width Destination image width.
  * @param {number} dst_height Destination image height.
- * @returns {Float64Array} Destination image in RGBA format.
+ * @returns {Float64Array} Destination image in a 4-channel format.
  */
 export function scale(src, src_width, src_height, dst_width, dst_height) {
     if (src_width <= 0 || src_height <= 0 || dst_width <= 0 || dst_height <= 0)
@@ -293,7 +293,7 @@ function vreconstruct(src, width, src_height, dst_height, filter, window, norm) 
 
 /**
  * Resize an image using a reconstruction filter.
- * @param {TypedArray} src Source image in RGBA format.
+ * @param {TypedArray} src Source image in a 4-channel format.
  * @param {number} src_width Source image width.
  * @param {number} src_height Source image height.
  * @param {number} dst_width Destination image width.
@@ -302,7 +302,7 @@ function vreconstruct(src, width, src_height, dst_height, filter, window, norm) 
  * @param {number} window Filter function window.
  * @param {number} norm Normalization constant.
  * @param {boolean} nop Boolean flag for a no-op case.
- * @returns {Float64Array} Destination image in RGBA format.
+ * @returns {Float64Array} Destination image in a 4-channel format.
  */
 export function reconstruct(src, src_width, src_height, dst_width, dst_height, filter, window, norm, nop) {
     if (src_width <= 0 || src_height <= 0 || dst_width <= 0 || dst_height <= 0)
@@ -463,7 +463,7 @@ function vreconstruct_iconvolve(src, width, src_height, dst_height, filter, wind
 
 /**
  * Resize an image using a reconstruction filter and an inverse discrete convolution.
- * @param {TypedArray} src Source image in RGBA format.
+ * @param {TypedArray} src Source image in a 4-channel format.
  * @param {number} src_width Source image width.
  * @param {number} src_height Source image height.
  * @param {number} dst_width Destination image width.
@@ -474,7 +474,7 @@ function vreconstruct_iconvolve(src, width, src_height, dst_height, filter, wind
  * @param {number[]} L Lower matrix coefficients.
  * @param {number} m Number of lower matrix coefficients.
  * @param {boolean} nop Boolean flag for a no-op case.
- * @return {Float64Array} Destination image in RGBA format.
+ * @return {Float64Array} Destination image in a 4-channel format.
  */
 export function reconstruct_iconvolve(src, src_width, src_height, dst_width, dst_height, filter, window, norm, L, m, nop) {
     if (src_width <= 0 || src_height <= 0 || dst_width <= 0 || dst_height <= 0)
@@ -528,13 +528,13 @@ export const Filter = {
 
 /**
  * Wrapper for `sample`, `scale`, `reconstruct`, and `reconstruct_iconvolve`.
- * @param {TypedArray} src Source image in RGBA format.
+ * @param {TypedArray} src Source image in a 4-channel format.
  * @param {number} src_width Source image width.
  * @param {number} src_height Source image height.
  * @param {number} dst_width Destination image width.
  * @param {number} dst_height Destination image height.
  * @param {Filter} filter Resizing method (filter) to be used. Defaults to Mitchell-Netravali.
- * @return {TypedArray | Float64Array} Destination image in RGBA format. Returns the same type as source image if `filter` is `NEAREST`, otherwise returns Float64Array.
+ * @return {TypedArray | Float64Array} Destination image in a 4-channel format. Returns the same type as source image if `filter` is `NEAREST`, otherwise returns Float64Array.
  */
 export function resize(src, src_width, src_height, dst_width, dst_height, filter) {
     switch (filter) {
