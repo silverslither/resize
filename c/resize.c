@@ -360,13 +360,14 @@ double *reconstruct(const double *src, s32 src_width, s32 src_height, s32 dst_wi
 }
 
 static void hiconvolve(double *img, s32 width, s32 height, const double *L, int m, double c) {
+    int n = m - 1;
     if (m >= width)
-        m = width - 1;
+        n = m = width - 1;
 
     const double L_0 = L[0];
     const double L_inf = L[m - 1];
     const double L_inf_mul = L_inf * c;
-    const double L_inf_div = L[m] / c;
+    const double L_inf_div = L[n] / c;
     const s32 f_adj = (width << 2) + 8;
     double *f = img + 4;
 
@@ -419,13 +420,14 @@ static void hiconvolve(double *img, s32 width, s32 height, const double *L, int 
 }
 
 static void viconvolve(double *img, s32 width, s32 height, const double *L, int m, double c) {
+    int n = m - 1;
     if (m >= height)
-        m = height - 1;
+        n = m = height - 1;
 
     const double L_0 = L[0];
     const double L_inf = L[m - 1];
     const double L_inf_mul = L_inf * c;
-    const double L_inf_div = L[m] / c;
+    const double L_inf_div = L[n] / c;
     const s32 adj_width = width << 2;
     double *pf = img;
     double *f = pf + adj_width;

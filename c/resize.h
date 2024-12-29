@@ -77,6 +77,7 @@ double *reconstruct(const double *src, s32 src_width, s32 src_height, s32 dst_wi
  * \param norm Normalization constant.
  * \param L Lower matrix coefficients.
  * \param m Number of lower matrix coefficients.
+ * \param c Edge multiplier constant.
  * \param nop Boolean flag for a no-op case.
  * \return Destination image in a 4-channel format, or null pointer if OOM.
  */
