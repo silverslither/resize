@@ -359,12 +359,14 @@ double *reconstruct(const double *src, s32 src_width, s32 src_height, s32 dst_wi
     }
 }
 
-static void hiconvolve(double *img, s32 width, s32 height, const double *L, int m) {
-    if (width < m)
-        m = width;
+static void hiconvolve(double *img, s32 width, s32 height, const double *L, int m, double c) {
+    if (m >= width)
+        m = width - 1;
 
+    const double L_0 = L[0];
     const double L_inf = L[m - 1];
-    const double v_inv = L_inf / (1.0 + L_inf);
+    const double L_inf_mul = L_inf * c;
+    const double L_inf_div = L[m] / c;
     const s32 f_adj = (width << 2) + 8;
     double *f = img + 4;
 
@@ -379,28 +381,27 @@ static void hiconvolve(double *img, s32 width, s32 height, const double *L, int 
             f[3] -= L_x * f[-1];
         }
 
-        for (; x < width; x++, f += 4) {
+        for (; x < width - 1; x++, f += 4) {
             f[0] -= L_inf * f[-4];
             f[1] -= L_inf * f[-3];
             f[2] -= L_inf * f[-2];
             f[3] -= L_inf * f[-1];
         }
 
+        f[0] = L_inf_div * (f[0] - L_inf_mul * f[-4]);
+        f[1] = L_inf_div * (f[1] - L_inf_mul * f[-3]);
+        f[2] = L_inf_div * (f[2] - L_inf_mul * f[-2]);
+        f[3] = L_inf_div * (f[3] - L_inf_mul * f[-1]);
         f -= 4;
-        f[0] *= v_inv;
-        f[1] *= v_inv;
-        f[2] *= v_inv;
-        f[3] *= v_inv;
 
-        f -= 4;
-        for (x = width - 2; x >= m - 1; x--, f -= 4) {
+        for (x = width - 2; x >= m; x--, f -= 4) {
             f[0] = L_inf * (f[0] - f[4]);
             f[1] = L_inf * (f[1] - f[5]);
             f[2] = L_inf * (f[2] - f[6]);
             f[3] = L_inf * (f[3] - f[7]);
         }
 
-        for (; x >= 0; x--, f -= 4) {
+        for (; x > 0; x--, f -= 4) {
             const double L_x = L[x];
             f[0] = L_x * (f[0] - f[4]);
             f[1] = L_x * (f[1] - f[5]);
@@ -408,16 +409,23 @@ static void hiconvolve(double *img, s32 width, s32 height, const double *L, int 
             f[3] = L_x * (f[3] - f[7]);
         }
 
-        f += f_adj;
+        f[0] = L_0 * (f[0] - c * f[4]);
+        f[1] = L_0 * (f[1] - c * f[5]);
+        f[2] = L_0 * (f[2] - c * f[6]);
+        f[3] = L_0 * (f[3] - c * f[7]);
+
+        f += f_adj - 4;
     }
 }
 
-static void viconvolve(double *img, s32 width, s32 height, const double *L, int m) {
-    if (height < m)
-        m = height;
+static void viconvolve(double *img, s32 width, s32 height, const double *L, int m, double c) {
+    if (m >= height)
+        m = height - 1;
 
+    const double L_0 = L[0];
     const double L_inf = L[m - 1];
-    const double v_inv = L_inf / (1.0 + L_inf);
+    const double L_inf_mul = L_inf * c;
+    const double L_inf_div = L[m] / c;
     const s32 adj_width = width << 2;
     double *pf = img;
     double *f = pf + adj_width;
@@ -433,27 +441,28 @@ static void viconvolve(double *img, s32 width, s32 height, const double *L, int 
             f[3] -= L_y * pf[3];
         }
 
-        for (; y < height; y++, pf = f, f += adj_width) {
+        for (; y < height - 1; y++, pf = f, f += adj_width) {
             f[0] -= L_inf * pf[0];
             f[1] -= L_inf * pf[1];
             f[2] -= L_inf * pf[2];
             f[3] -= L_inf * pf[3];
         }
 
-        pf[0] *= v_inv;
-        pf[1] *= v_inv;
-        pf[2] *= v_inv;
-        pf[3] *= v_inv;
-
+        f[0] = L_inf_div * (f[0] - L_inf_mul * pf[0]);
+        f[1] = L_inf_div * (f[1] - L_inf_mul * pf[1]);
+        f[2] = L_inf_div * (f[2] - L_inf_mul * pf[2]);
+        f[3] = L_inf_div * (f[3] - L_inf_mul * pf[3]);
+        pf = f;
         f = pf - adj_width;
-        for (y = height - 2; y >= m - 1; y--, pf = f, f -= adj_width) {
+
+        for (y = height - 2; y >= m; y--, pf = f, f -= adj_width) {
             f[0] = L_inf * (f[0] - pf[0]);
             f[1] = L_inf * (f[1] - pf[1]);
             f[2] = L_inf * (f[2] - pf[2]);
             f[3] = L_inf * (f[3] - pf[3]);
         }
 
-        for (y = m - 2; y >= 0; y--, pf = f, f -= adj_width) {
+        for (; y > 0; y--, pf = f, f -= adj_width) {
             const double L_y = L[y];
             f[0] = L_y * (f[0] - pf[0]);
             f[1] = L_y * (f[1] - pf[1]);
@@ -461,56 +470,69 @@ static void viconvolve(double *img, s32 width, s32 height, const double *L, int 
             f[3] = L_y * (f[3] - pf[3]);
         }
 
-        pf += 4;
+        f[0] = L_0 * (f[0] - c * pf[0]);
+        f[1] = L_0 * (f[1] - c * pf[1]);
+        f[2] = L_0 * (f[2] - c * pf[2]);
+        f[3] = L_0 * (f[3] - c * pf[3]);
+
+        pf = f + 4;
         f = pf + adj_width;
     }
 }
 
-static double *hreconstruct_iconvolve(const double *src, s32 src_width, s32 height, s32 dst_width, double (*filter)(double), double window, double norm, const double *L, int m) {
+static double *hreconstruct_iconvolve(const double *src, s32 src_width, s32 height, s32 dst_width, double (*filter)(double), double window, double norm, const double *L, int m, double c) {
     if (dst_width > src_width) {
-        size_t size = ((size_t)src_width * (size_t)height) << 5;
-        double *temp = malloc(size);
+        if (src_width == 1)
+            return hreconstruct(src, src_width, height, dst_width, filter, window, norm);
+
+        double *temp = imgcpy(src, src_width, height);
         if (!temp)
             return NULL;
-        memcpy(temp, src, size);
-        hiconvolve(temp, src_width, height, L, m);
+        hiconvolve(temp, src_width, height, L, m, c);
 
         double *ret = hreconstruct(temp, src_width, height, dst_width, filter, window, norm);
         free(temp);
         return ret;
     } else {
+        if (dst_width == 1)
+            return hreconstruct(src, src_width, height, dst_width, filter, window, 1.0);
+
         double *ret = hreconstruct(src, src_width, height, dst_width, filter, window, norm);
         if (!ret)
             return NULL;
 
-        hiconvolve(ret, dst_width, height, L, m);
+        hiconvolve(ret, dst_width, height, L, m, c);
         return ret;
     }
 }
 
-static double *vreconstruct_iconvolve(const double *src, s32 width, s32 src_height, s32 dst_height, double (*filter)(double), double window, double norm, const double *L, int m) {
+static double *vreconstruct_iconvolve(const double *src, s32 width, s32 src_height, s32 dst_height, double (*filter)(double), double window, double norm, const double *L, int m, double c) {
     if (dst_height > src_height) {
-        size_t size = ((size_t)width * (size_t)src_height) << 5;
-        double *temp = malloc(size);
+        if (src_height == 1)
+            return vreconstruct(src, width, src_height, dst_height, filter, window, 1.0);
+
+        double *temp = imgcpy(src, width, src_height);
         if (!temp)
             return NULL;
-        memcpy(temp, src, size);
-        viconvolve(temp, width, src_height, L, m);
+        viconvolve(temp, width, src_height, L, m, c);
 
         double *ret = vreconstruct(temp, width, src_height, dst_height, filter, window, norm);
         free(temp);
         return ret;
     } else {
+        if (dst_height == 1)
+            return vreconstruct(src, width, src_height, dst_height, filter, window, 1.0);
+
         double *ret = vreconstruct(src, width, src_height, dst_height, filter, window, norm);
         if (!ret)
             return NULL;
 
-        viconvolve(ret, width, dst_height, L, m);
+        viconvolve(ret, width, dst_height, L, m, c);
         return ret;
     }
 }
 
-double *reconstruct_iconvolve(const double *src, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height, double (*filter)(double), double window, double norm, const double *L, int m, int nop) {
+double *reconstruct_iconvolve(const double *src, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height, double (*filter)(double), double window, double norm, const double *L, int m, double c, int nop) {
     if (src_width <= 0 || src_height <= 0 || dst_width <= 0 || dst_height <= 0)
         return NULL;
 
@@ -518,9 +540,9 @@ double *reconstruct_iconvolve(const double *src, s32 src_width, s32 src_height, 
         if (dst_width == src_width) {
             if (dst_height == src_height)
                 return imgcpy(src, src_width, src_height);
-            return vreconstruct_iconvolve(src, src_width, src_height, dst_height, filter, window, norm, L, m);
+            return vreconstruct_iconvolve(src, src_width, src_height, dst_height, filter, window, norm, L, m, c);
         } else if (dst_height == src_height) {
-            return hreconstruct_iconvolve(src, src_width, src_height, dst_width, filter, window, norm, L, m);
+            return hreconstruct_iconvolve(src, src_width, src_height, dst_width, filter, window, norm, L, m, c);
         }
     }
 
@@ -528,19 +550,19 @@ double *reconstruct_iconvolve(const double *src, s32 src_width, s32 src_height, 
     const double y_factor = (double)dst_height / src_height;
 
     if (x_factor >= y_factor) {
-        double *temp = vreconstruct_iconvolve(src, src_width, src_height, dst_height, filter, window, norm, L, m);
+        double *temp = vreconstruct_iconvolve(src, src_width, src_height, dst_height, filter, window, norm, L, m, c);
         if (!temp)
             return NULL;
 
-        double *ret = hreconstruct_iconvolve(temp, src_width, dst_height, dst_width, filter, window, norm, L, m);
+        double *ret = hreconstruct_iconvolve(temp, src_width, dst_height, dst_width, filter, window, norm, L, m, c);
         free(temp);
         return ret;
     } else {
-        double *temp = hreconstruct_iconvolve(src, src_width, src_height, dst_width, filter, window, norm, L, m);
+        double *temp = hreconstruct_iconvolve(src, src_width, src_height, dst_width, filter, window, norm, L, m, c);
         if (!temp)
             return NULL;
 
-        double *ret = vreconstruct_iconvolve(temp, dst_width, src_height, dst_height, filter, window, norm, L, m);
+        double *ret = vreconstruct_iconvolve(temp, dst_width, src_height, dst_height, filter, window, norm, L, m, c);
         free(temp);
         return ret;
     }
@@ -580,8 +602,8 @@ double *resize(const double *src, s32 src_width, s32 src_height, s32 dst_width, 
     case HAMMING_4:
         return reconstruct(src, src_width, src_height, dst_width, dst_height, Hamming4, 4.0, 1.0, 1);
     case B_SPLINE_3_I:
-        return reconstruct_iconvolve(src, src_width, src_height, dst_width, dst_height, BSpline3, 2.0, 6.0, L_bspline3i, 15, 1);
+        return reconstruct_iconvolve(src, src_width, src_height, dst_width, dst_height, BSpline3, 2.0, 6.0, L_bspline3i, 14, 1.2, 1);
     case O_MOMS_3_I:
-        return reconstruct_iconvolve(src, src_width, src_height, dst_width, dst_height, OMOMS3, 2.0, 5.25, L_omoms3, 18, 1);
+        return reconstruct_iconvolve(src, src_width, src_height, dst_width, dst_height, OMOMS3, 2.0, 5.25, L_omoms3, 18, 1.2352941176470589, 1);
     }
 }

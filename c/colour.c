@@ -36,6 +36,7 @@ double srgb_decode(double x) {
 }
 
 void get_sigmoidization_params(double beta, SigmoidizationParams *params) {
+    beta *= 1.4426950408889634;
     double exp_beta = exp2(beta);
     double sqrt_exp_beta = sqrt(exp_beta);
     double inv_denominator = 1.0 / (sqrt_exp_beta - 1.0);

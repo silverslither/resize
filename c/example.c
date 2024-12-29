@@ -45,15 +45,19 @@ int parseDimension(char *str, unsigned src_dimension) {
     double num;
     int pos;
 
-    if (!sscanf(str, "%lf%n", &num, &pos) || num <= 0 || pos < len - 1)
+    if (!sscanf(str, "%lf%n", &num, &pos) || pos < len - 1)
         return -1;
 
-    if (str[len - 1] == '%')
-        num *= 0.01 * (double)src_dimension;
-    if (tolower(str[len - 1]) == 'x')
-        num *= (double)src_dimension;
+    if (pos == len - 1) {
+        if (str[len - 1] == '%')
+            num *= 0.01 * (double)src_dimension;
+        else if (tolower(str[len - 1]) == 'x')
+            num *= (double)src_dimension;
+        else
+            return -1;
+    }
 
-    if (num >= INT_MAX + 0.5)
+    if (num <= 0.5 || num >= INT_MAX + 0.5)
         return -1;
 
     return (int)__builtin_roundeven(num);
@@ -131,7 +135,7 @@ int main(int argc, char **argv) {
     for (int i = 5; i < argc; i++) {
         const char *str = argv[i];
         if (str[0] != '-' || str[1] == 0 || str[2] != 0) {
-invalid:
+        invalid:
             fprintf(stderr, "warning: invalid argument '%s'\n", str);
             continue;
         }
@@ -173,12 +177,12 @@ no_options:;
     // dimensions parsing
     int dst_width = parseDimension(argv[2], src_width);
     if (dst_width == -1) {
-        fprintf(stderr, "error: invalid dimension '%s'\n", argv[2]);
+        fprintf(stderr, "error: invalid width '%s'\n", argv[2]);
         return 1;
     }
     int dst_height = parseDimension(argv[3], src_height);
     if (dst_height == -1) {
-        fprintf(stderr, "error: invalid dimension '%s'\n", argv[3]);
+        fprintf(stderr, "error: invalid height '%s'\n", argv[3]);
         return 1;
     }
 

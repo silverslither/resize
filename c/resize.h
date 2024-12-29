@@ -80,7 +80,7 @@ double *reconstruct(const double *src, s32 src_width, s32 src_height, s32 dst_wi
  * \param nop Boolean flag for a no-op case.
  * \return Destination image in a 4-channel format, or null pointer if OOM.
  */
-double *reconstruct_iconvolve(const double *src, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height, double (*filter)(double), double window, double norm, const double *L, int m, int nop);
+double *reconstruct_iconvolve(const double *src, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height, double (*filter)(double), double window, double norm, const double *L, int m, double c, int nop);
 
 /**
  * \brief Wrapper for `sample`, `scale`, `reconstruct`, and `reconstruct_iconvolve`.

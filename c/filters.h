@@ -25,7 +25,7 @@ double Hamming4(double x);
 
 extern double L_bspline3i[15];
 
-extern double L_omoms3[18];
+extern double L_omoms3[19];
 double OMOMS3(double x);
 
 #endif
