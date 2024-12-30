@@ -17,7 +17,7 @@ void div_alpha(double *arr, size_t len);
 double srgb_encode(double x);
 double srgb_decode(double x);
 
-void get_sigmoidization_params(double beta, SigmoidizationParams *params);
+SigmoidizationParams get_sigmoidization_params(double beta);
 double sigmoidal_contrast_increase(double x, SigmoidizationParams *params);
 double sigmoidal_contrast_decrease(double x, SigmoidizationParams *params);
 

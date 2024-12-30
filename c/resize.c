@@ -6,14 +6,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-static inline s32 q_floor(double x) {
-    return (s32)x;
-}
-static inline s32 q_ceil(double x) {
-    const s32 r = (s32)x;
-    return r + (x > (double)r);
-}
-
 static inline double q_fmax(double x, double y) {
     return x > y ? x : y;
 }
@@ -48,9 +40,9 @@ double *sample(const double *src, s32 src_width, s32 src_height, s32 dst_width, 
 
     s32 dst_pixel = 0;
     for (s32 y = 0; y < dst_height; y++) {
-        s32 mapped_y = q_ceil(y_factor * (y + 0.5) - 1.0) * src_width;
+        s32 mapped_y = (s32)ceil(y_factor * (y + 0.5) - 1.0) * src_width;
         for (s32 x = 0; x < dst_width; x++, dst_pixel += 4) {
-            const s32 mapped_x = q_ceil(x_factor * (x + 0.5) - 1.0);
+            const s32 mapped_x = (s32)ceil(x_factor * (x + 0.5) - 1.0);
             const s32 src_pixel = (mapped_y + mapped_x) << 2;
             dst[dst_pixel + 0] = src[src_pixel + 0];
             dst[dst_pixel + 1] = src[src_pixel + 1];
@@ -78,8 +70,8 @@ static double *hscale(const double *src, s32 src_width, s32 height, s32 dst_widt
     for (s32 x = 0; x < dst_width; x++, dst_offset += 4) {
         const double min_mapped_x = factor * x;
         const double max_mapped_x = min_mapped_x + factor;
-        s32 min_x = q_ceil(min_mapped_x);
-        s32 max_x = q_floor(max_mapped_x);
+        s32 min_x = (s32)ceil(min_mapped_x);
+        s32 max_x = (s32)floor(max_mapped_x);
 
         s32 dst_pixel = dst_offset;
 
@@ -144,8 +136,8 @@ static double *vscale(const double *src, s32 width, s32 src_height, s32 dst_heig
     for (s32 y = 0; y < dst_height; y++) {
         const double min_mapped_y = factor * y;
         const double max_mapped_y = min_mapped_y + factor;
-        s32 min_y = q_ceil(min_mapped_y);
-        s32 max_y = q_floor(max_mapped_y);
+        s32 min_y = (s32)ceil(min_mapped_y);
+        s32 max_y = (s32)floor(max_mapped_y);
 
         if (max_y < min_y) {
             const s32 src_offset = adj_width * max_y;
@@ -248,8 +240,8 @@ static double *hreconstruct(const double *src, s32 src_width, s32 height, s32 ds
     s32 dst_offset = 0;
     for (s32 x = 0; x < dst_width; x++, dst_offset += 4) {
         const double mapped_x = factor * (x + 0.5) - 0.5;
-        const s32 min_x = max(q_ceil(mapped_x - window), 0);
-        const s32 max_x = min(q_floor(mapped_x + window), max_s);
+        const s32 min_x = max((s32)ceil(mapped_x - window), 0);
+        const s32 max_x = min((s32)floor(mapped_x + window), max_s);
         double weight_total = 0;
 
         s32 src_offset = min_x << 2;
@@ -294,8 +286,8 @@ static double *vreconstruct(const double *src, s32 width, s32 src_height, s32 ds
     s32 ndst_offset = adj_width;
     for (s32 y = 0; y < dst_height; y++, dst_offset = ndst_offset, ndst_offset += adj_width) {
         const double mapped_y = factor * (y + 0.5) - 0.5;
-        const s32 min_y = max(q_ceil(mapped_y - window), 0);
-        const s32 max_y = min(q_floor(mapped_y + window), max_s);
+        const s32 min_y = max((s32)ceil(mapped_y - window), 0);
+        const s32 max_y = min((s32)floor(mapped_y + window), max_s);
         double weight_total = 0;
 
         s32 src_offset = adj_width * min_y;
@@ -485,7 +477,7 @@ static void viconvolve(double *img, s32 width, s32 height, const double *L, int 
 static double *hreconstruct_iconvolve(const double *src, s32 src_width, s32 height, s32 dst_width, double (*filter)(double), double window, double norm, const double *L, int m, double c) {
     if (dst_width > src_width) {
         if (src_width == 1)
-            return hreconstruct(src, src_width, height, dst_width, filter, window, norm);
+            return hreconstruct(src, src_width, height, dst_width, filter, window, 1.0);
 
         double *temp = imgcpy(src, src_width, height);
         if (!temp)

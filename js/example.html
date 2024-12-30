@@ -1,9 +1,23 @@
+<!DOCTYPE html>
 <html>
 
 <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>resize example</title>
     <script type="module" src="example.js"></script>
 </head>
 
-<body></body>
+<body>
+    <input id="input" type="file"><br/>
+    width <input id="width" type="text"><br/>
+    height <input id="height" type="text"><br/>
+    filter <input id="filter" type="text"><br/>
+    linearize <input id="linearize" type="checkbox"><br/>
+    sigmoidization contrast <input id="beta" type="text"><br/>
+    <button type="button">Submit</button><br/>
+    <span id="err" style="color:red"></span>
+    <a hidden>
+</body>
 
 </html>

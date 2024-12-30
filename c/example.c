@@ -112,7 +112,7 @@ SigmoidizationParams *parseSigmoidizationBeta(char *str, SigmoidizationParams *p
     if (beta == 0)
         return NULL;
 
-    get_sigmoidization_params(beta, params);
+    *params = get_sigmoidization_params(beta);
     return params;
 }
 

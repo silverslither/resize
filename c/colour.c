@@ -35,16 +35,18 @@ double srgb_decode(double x) {
     return 0.07739938080495357 * x;
 }
 
-void get_sigmoidization_params(double beta, SigmoidizationParams *params) {
+SigmoidizationParams get_sigmoidization_params(double beta) {
     beta *= 1.4426950408889634;
+    SigmoidizationParams params;
     double exp_beta = exp2(beta);
     double sqrt_exp_beta = sqrt(exp_beta);
     double inv_denominator = 1.0 / (sqrt_exp_beta - 1.0);
-    params->beta = beta;
-    params->inv_beta = 1.0 / beta;
-    params->a = sqrt_exp_beta * inv_denominator;
-    params->b = (exp_beta + sqrt_exp_beta) * inv_denominator;
-    params->c = sqrt_exp_beta;
+    params.beta = beta;
+    params.inv_beta = 1.0 / beta;
+    params.a = sqrt_exp_beta * inv_denominator;
+    params.b = (exp_beta + sqrt_exp_beta) * inv_denominator;
+    params.c = sqrt_exp_beta;
+    return params;
 }
 
 double sigmoidal_contrast_increase(double x, SigmoidizationParams *params) {
