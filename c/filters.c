@@ -53,15 +53,6 @@ double CatRom(double x) {
     return 2.0 - x * (4.0 - x * (2.5 - 0.5 * x));
 }
 
-double MKS2013(double x) {
-    if (x <= 0.5)
-        return 1.0625 - 1.75 * x * x;
-    if (x <= 1.5)
-        return 1.75 - x * (2.75 - x);
-    const double x_ = x - 2.5;
-    return -0.125 * x_ * x_;
-}
-
 static inline double lsin3(double x) {
     const double x2 = x * x;
     const double v = 2.829828552115177 - 1.2490259408560183 * x2;
@@ -135,6 +126,20 @@ double Hamming4(double x) {
     const double w = copysign(hcos4w(x > 2.0 ? x - 4.0 : x), 2.0 - x);
     return hsin(poly_x) * (0.53836 + w) / x;
 }
+
+double L_bspline2i[11] = {
+    0.14583333333333334,
+    0.17142857142857143,
+    0.1715686274509804,
+    0.17157275021026072,
+    0.17157287157287157,
+    0.1715728751454532,
+    0.17157287525062018,
+    0.171572875253716,
+    0.17157287525380713,
+    0.17157287525380982,
+    0.1715728752538099
+};
 
 double L_bspline3i[14] = {
     0.20833333333333334,

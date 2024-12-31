@@ -546,11 +546,11 @@ export const Filter = {
     B_SPLINE_3: 8,
     MITNET: 9,
     CATROM: 10,
-    MKS_2013: 11,
-    LANCZOS_3: 12,
-    LANCZOS_4: 13,
-    HAMMING_3: 14,
-    HAMMING_4: 15,
+    LANCZOS_3: 11,
+    LANCZOS_4: 12,
+    HAMMING_3: 13,
+    HAMMING_4: 14,
+    B_SPLINE_2_I: 15,
     B_SPLINE_3_I: 16,
     O_MOMS_3_I: 17
 };
@@ -588,8 +588,6 @@ export function resize(src, src_width, src_height, dst_width, dst_height, filter
             return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.MitNet, 2.0, 1.0, 0);
         case Filter.CATROM:
             return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.CatRom, 2.0, 1.0, 1);
-        case Filter.MKS_2013:
-            return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.MKS2013, 2.5, 1.0, 0);
         case Filter.LANCZOS_3:
             return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.Lanczos3, 3.0, 1.0, 1);
         case Filter.LANCZOS_4:
@@ -598,6 +596,8 @@ export function resize(src, src_width, src_height, dst_width, dst_height, filter
             return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.Hamming3, 3.0, 1.0, 1);
         case Filter.HAMMING_4:
             return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.Hamming4, 4.0, 1.0, 1);
+        case Filter.B_SPLINE_2_I:
+            return reconstruct_iconvolve(src, src_width, src_height, dst_width, dst_height, Filters.BSpline2, 1.5, 8.0, Filters.L_bspline2i, 11, 1.1428571428571428, 1);
         case Filter.B_SPLINE_3_I:
             return reconstruct_iconvolve(src, src_width, src_height, dst_width, dst_height, Filters.BSpline3, 2.0, 6.0, Filters.L_bspline3i, 14, 1.2, 1);
         case Filter.O_MOMS_3_I:

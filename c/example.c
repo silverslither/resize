@@ -76,11 +76,11 @@ Filter parseFilter(char *str) {
         "BSPLINE3",
         "MITNET",
         "CATROM",
-        "MKS2013",
         "LANCZOS3",
         "LANCZOS4",
         "HAMMING3",
         "HAMMING4",
+        "BSPLINE2I",
         "BSPLINE3I",
         "OMOMS3I"
     };

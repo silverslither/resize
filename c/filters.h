@@ -15,14 +15,13 @@ double BSpline3(double x);
 double MitNet(double x);
 double CatRom(double x);
 
-double MKS2013(double x);
-
 double Lanczos3(double x);
 double Lanczos4(double x);
 
 double Hamming3(double x);
 double Hamming4(double x);
 
+extern double L_bspline2i[11];
 extern double L_bspline3i[14];
 
 extern double L_omoms3[18];
