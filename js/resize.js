@@ -540,19 +540,15 @@ export const Filter = {
     AREA: 2,
     TRIANGLE: 3,
     HERMITE: 4,
-    LAGRANGE_2: 5,
-    LAGRANGE_3: 6,
-    B_SPLINE_2: 7,
-    B_SPLINE_3: 8,
-    MITNET: 9,
-    CATROM: 10,
-    LANCZOS_3: 11,
-    LANCZOS_4: 12,
-    HAMMING_3: 13,
-    HAMMING_4: 14,
-    B_SPLINE_2_I: 15,
-    B_SPLINE_3_I: 16,
-    O_MOMS_3_I: 17
+    BSPLINE2: 5,
+    BSPLINE3: 6,
+    MITNET: 7,
+    CATROM: 8,
+    HAMMING3: 9,
+    HAMMING4: 10,
+    BSPLINE2I: 11,
+    BSPLINE3I: 12,
+    OMOMS3I: 13
 };
 
 /**
@@ -575,32 +571,24 @@ export function resize(src, src_width, src_height, dst_width, dst_height, filter
             return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.Triangle, 1.0, 1.0, 1);
         case Filter.HERMITE:
             return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.Hermite, 1.0, 1.0, 1);
-        case Filter.LAGRANGE_2:
-            return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.Lagrange2, 1.5, 1.0, 1);
-        case Filter.LAGRANGE_3:
-            return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.Lagrange3, 2.0, 1.0, 1);
-        case Filter.B_SPLINE_2:
+        case Filter.BSPLINE2:
             return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.BSpline2, 1.5, 1.0, 0);
-        case Filter.B_SPLINE_3:
+        case Filter.BSPLINE3:
             return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.BSpline3, 2.0, 1.0, 0);
         default:
         case Filter.MITNET:
             return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.MitNet, 2.0, 1.0, 0);
         case Filter.CATROM:
             return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.CatRom, 2.0, 1.0, 1);
-        case Filter.LANCZOS_3:
-            return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.Lanczos3, 3.0, 1.0, 1);
-        case Filter.LANCZOS_4:
-            return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.Lanczos4, 4.0, 1.0, 1);
-        case Filter.HAMMING_3:
+        case Filter.HAMMING3:
             return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.Hamming3, 3.0, 1.0, 1);
-        case Filter.HAMMING_4:
+        case Filter.HAMMING4:
             return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.Hamming4, 4.0, 1.0, 1);
-        case Filter.B_SPLINE_2_I:
+        case Filter.BSPLINE2I:
             return reconstruct_iconvolve(src, src_width, src_height, dst_width, dst_height, Filters.BSpline2, 1.5, 8.0, Filters.L_bspline2i, 11, 1.1428571428571428, 1);
-        case Filter.B_SPLINE_3_I:
+        case Filter.BSPLINE3I:
             return reconstruct_iconvolve(src, src_width, src_height, dst_width, dst_height, Filters.BSpline3, 2.0, 6.0, Filters.L_bspline3i, 14, 1.2, 1);
-        case Filter.O_MOMS_3_I:
+        case Filter.OMOMS3I:
             return reconstruct_iconvolve(src, src_width, src_height, dst_width, dst_height, Filters.OMOMS3, 2.0, 5.25, Filters.L_omoms3, 18, 1.2352941176470589, 1);
     }
 }

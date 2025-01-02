@@ -572,32 +572,24 @@ double *resize(const double *src, s32 src_width, s32 src_height, s32 dst_width, 
         return reconstruct(src, src_width, src_height, dst_width, dst_height, Triangle, 1.0, 1.0, 1);
     case HERMITE:
         return reconstruct(src, src_width, src_height, dst_width, dst_height, Hermite, 1.0, 1.0, 1);
-    case LAGRANGE_2:
-        return reconstruct(src, src_width, src_height, dst_width, dst_height, Lagrange2, 1.5, 1.0, 1);
-    case LAGRANGE_3:
-        return reconstruct(src, src_width, src_height, dst_width, dst_height, Lagrange3, 2.0, 1.0, 1);
-    case B_SPLINE_2:
+    case BSPLINE2:
         return reconstruct(src, src_width, src_height, dst_width, dst_height, BSpline2, 1.5, 1.0, 0);
-    case B_SPLINE_3:
+    case BSPLINE3:
         return reconstruct(src, src_width, src_height, dst_width, dst_height, BSpline3, 2.0, 1.0, 0);
     default:
     case MITNET:
         return reconstruct(src, src_width, src_height, dst_width, dst_height, MitNet, 2.0, 1.0, 0);
     case CATROM:
         return reconstruct(src, src_width, src_height, dst_width, dst_height, CatRom, 2.0, 1.0, 1);
-    case LANCZOS_3:
-        return reconstruct(src, src_width, src_height, dst_width, dst_height, Lanczos3, 3.0, 1.0, 1);
-    case LANCZOS_4:
-        return reconstruct(src, src_width, src_height, dst_width, dst_height, Lanczos4, 4.0, 1.0, 1);
-    case HAMMING_3:
+    case HAMMING3:
         return reconstruct(src, src_width, src_height, dst_width, dst_height, Hamming3, 3.0, 1.0, 1);
-    case HAMMING_4:
+    case HAMMING4:
         return reconstruct(src, src_width, src_height, dst_width, dst_height, Hamming4, 4.0, 1.0, 1);
-    case B_SPLINE_2_I:
+    case BSPLINE2I:
         return reconstruct_iconvolve(src, src_width, src_height, dst_width, dst_height, BSpline2, 1.5, 8.0, L_bspline2i, 11, 1.1428571428571428, 1);
-    case B_SPLINE_3_I:
+    case BSPLINE3I:
         return reconstruct_iconvolve(src, src_width, src_height, dst_width, dst_height, BSpline3, 2.0, 6.0, L_bspline3i, 14, 1.2, 1);
-    case O_MOMS_3_I:
+    case OMOMS3I:
         return reconstruct_iconvolve(src, src_width, src_height, dst_width, dst_height, OMOMS3, 2.0, 5.25, L_omoms3, 18, 1.2352941176470589, 1);
     }
 }

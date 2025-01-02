@@ -1,6 +1,6 @@
 // Copyright (c) 2024 silverslither.
 
-import { resize } from "./resize.js";
+import { Filter, resize } from "./resize.js";
 import { mul_alpha, div_alpha, srgb_encode, srgb_decode, get_sigmoidization_params, sigmoidal_contrast_increase, sigmoidal_contrast_decrease } from "./colour.js";
 import { encode, decode } from "https://cdn.jsdelivr.net/npm/fast-png@6.2.0/+esm"
 
@@ -126,31 +126,12 @@ function parseFilter(str) {
     if (str === "")
         return 0;
 
-    const filters = [
-        "DEFAULT",
-        "NEAREST",
-        "AREA",
-        "TRIANGLE",
-        "HERMITE",
-        "LAGRANGE2",
-        "LAGRANGE3",
-        "BSPLINE2",
-        "BSPLINE3",
-        "MITNET",
-        "CATROM",
-        "LANCZOS3",
-        "LANCZOS4",
-        "HAMMING3",
-        "HAMMING4",
-        "BSPLINE2I",
-        "BSPLINE3I",
-        "OMOMS3I"
-    ];
+    const filters = Object.keys(Filter);
     str = str.toUpperCase();
 
     for (let i = 0; i < filters.length; i++)
         if (str === filters[i])
-            return i;
+            return Filter[filters[i]];
 
     err.innerText += `warning: invalid filter '${str}'\n`;
 

@@ -8,19 +8,6 @@ export const Hermite = (x) => {
     return 1.0 - x * x * (3.0 - 2.0 * x);
 };
 
-export const Lagrange2 = (x) => {
-    if (x <= 0.5)
-        return 1.0 - x * x;
-    return 1.0 - x * (1.5 - 0.5 * x);
-}
-
-// Normalized to 3.0
-export const Lagrange3 = (x) => {
-    if (x <= 1.0)
-        return 3.0 - x * (1.5 + x * (3.0 - 1.5 * x));
-    return 3.0 - x * (5.5 - x * (3.0 - 0.5 * x));
-}
-
 export const BSpline2 = (x) => {
     if (x <= 0.5)
         return 0.75 - x * x;
@@ -49,57 +36,21 @@ export const CatRom = (x) => {
     return 2.0 - x * (4.0 - x * (2.5 - 0.5 * x));
 };
 
-const lsin3 = (x) => {
-    const x2 = x * x;
-    const v = 2.829828552115177 - 1.2490259408560183 * x2;
-    return x * (1.7320508075688772 - v * x2);
-};
-const lsin3w = (x) => {
-    const x2 = x * x;
-    const v = 0.10480846489315472 - 0.005140024447967154 * x2;
-    return x * (0.5773502691896257 - v * x2);
-};
-export const Lanczos3 = (x) => {
-    if (x < 1.0e-8)
-        return 1.0;
-    const round_x = Math.round(x);
-    const sign = (round_x << 31 >> 31) | 1;
-    const poly_x = sign * (x - round_x);
-    return lsin3(poly_x) * lsin3w(x > 1.5 ? 3.0 - x : x) / (x * x);
-};
-
-const lsin4 = (x) => {
-    const x2 = x * x;
-    const v = 3.2676045526483732 - 1.4422509263560956 * x2;
-    return x * (2.0 - v * x2);
-};
-const lsin4w = (x) => {
-    const x2 = x * x;
-    const v = 0.05105632113513083 - 0.0014084481702696247 * x2;
-    return x * (0.5 - v * x2);
-};
-export const Lanczos4 = (x) => {
-    if (x < 1.0e-8)
-        return 1.0;
-    const round_x = Math.round(x);
-    const sign = (round_x << 31 >> 31) | 1;
-    const poly_x = sign * (x - round_x);
-    return lsin4(poly_x) * lsin4w(x > 2.0 ? 4.0 - x : x) / (x * x);
-};
-
 const hsin = (x) => {
     const x2 = x * x;
-    const v = 1.6338022763241866 - 0.7211254631780478 * x2;
-    return x * (1.0 - v * x2);
+    let v = 1.6338022763241866 - 0.7211254631780478 * x2;
+    v = 1.0 - v * x2;
+    return v * x;
 };
 
 const hcos3w = (x) => {
     const x2 = x * x;
-    const v = 0.24920390748853422 - 0.019569144068978167 * x2;
+    let v = 0.023077941650754795 - 0.0007869230084260478 * x2;
+    v = 0.25311490431737477 - v * x2;
     return 0.46164 - v * x2;
 };
 export const Hamming3 = (x) => {
-    if (x < 1.0e-8)
+    if (x < 7.450580596923828e-9)
         return 1.0;
     const round_x = Math.round(x);
     const sign = (round_x << 31 >> 31) | 1;
@@ -111,11 +62,12 @@ export const Hamming3 = (x) => {
 
 const hcos4w = (x) => {
     const x2 = x * x;
-    const v = 0.1401771979623005 - 0.006191799490575123 * x2;
+    let v = 0.007302004975434134 - 0.00014005538895082734 * x2;
+    v = 0.1423771336785233 - v * x2;
     return 0.46164 - v * x2;
 };
 export const Hamming4 = (x) => {
-    if (x < 1.0e-8)
+    if (x < 7.450580596923828e-9)
         return 1.0;
     const round_x = Math.round(x);
     const sign = (round_x << 31 >> 31) | 1;

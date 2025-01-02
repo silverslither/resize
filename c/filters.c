@@ -12,19 +12,6 @@ double Hermite(double x) {
     return 1.0 - x * x * (3.0 - 2.0 * x);
 }
 
-double Lagrange2(double x) {
-    if (x <= 0.5)
-        return 1.0 - x * x;
-    return 1.0 - x * (1.5 - 0.5 * x);
-}
-
-// Normalized to 3.0
-double Lagrange3(double x) {
-    if (x <= 1.0)
-        return 3.0 - x * (1.5 + x * (3.0 - 1.5 * x));
-    return 3.0 - x * (5.5 - x * (3.0 - 0.5 * x));
-}
-
 double BSpline2(double x) {
     if (x <= 0.5)
         return 0.75 - x * x;
@@ -53,76 +40,43 @@ double CatRom(double x) {
     return 2.0 - x * (4.0 - x * (2.5 - 0.5 * x));
 }
 
-static inline double lsin3(double x) {
-    const double x2 = x * x;
-    const double v = 2.829828552115177 - 1.2490259408560183 * x2;
-    return x * (1.7320508075688772 - v * x2);
-}
-static inline double lsin3w(double x) {
-    const double x2 = x * x;
-    const double v = 0.10480846489315472 - 0.005140024447967154 * x2;
-    return x * (0.5773502691896257 - v * x2);
-}
-double Lanczos3(double x) {
-    if (x < 1.0e-8)
-        return 1.0;
-    const int round_x = (int)(x + 0.5);
-    const uint64_t sign = ((uint64_t)(round_x) << 63) | 0x3ff0000000000000;
-    const double poly_x = *(const double *)&sign * (x - (double)round_x);
-    return lsin3(poly_x) * lsin3w(x > 1.5 ? 3.0 - x : x) / (x * x);
-}
-
-static inline double lsin4(double x) {
-    const double x2 = x * x;
-    const double v = 3.2676045526483732 - 1.4422509263560956 * x2;
-    return x * (2.0 - v * x2);
-}
-static inline double lsin4w(double x) {
-    const double x2 = x * x;
-    const double v = 0.05105632113513083 - 0.0014084481702696247 * x2;
-    return x * (0.5 - v * x2);
-}
-double Lanczos4(double x) {
-    if (x < 1.0e-8)
-        return 1.0;
-    const int round_x = (int)(x + 0.5);
-    const uint64_t sign = ((uint64_t)(round_x) << 63) | 0x3ff0000000000000;
-    const double poly_x = *(const double *)&sign * (x - (double)round_x);
-    return lsin4(poly_x) * lsin4w(x > 2.0 ? 4.0 - x : x) / (x * x);
-}
-
 static inline double hsin(double x) {
     const double x2 = x * x;
-    const double v = 1.6338022763241866 - 0.7211254631780478 * x2;
-    return x * (1.0 - v * x2);
+    double v = 1.6338022763241866 - 0.7211254631780478 * x2;
+    v = 1.0 - v * x2;
+    return x * v;
 }
 
 static inline double hcos3w(double x) {
     const double x2 = x * x;
-    const double v = 0.24920390748853422 - 0.019569144068978167 * x2;
+    double v = 0.023077941650754795 - 0.0007869230084260478 * x2;
+    v = 0.25311490431737477 - v * x2;
     return 0.46164 - v * x2;
 }
 double Hamming3(double x) {
-    if (x < 1.0e-8)
+    if (x < 7.450580596923828e-9)
         return 1.0;
     const int round_x = (int)(x + 0.5);
-    const uint64_t sign = ((uint64_t)(round_x) << 63) | 0x3ff0000000000000;
-    const double poly_x = *(const double *)&sign * (x - (double)round_x);
+    const double dist_x = x - (double)round_x;
+    const uint64_t poly_x_ = ((uint64_t)round_x << 63) ^ *(const uint64_t *)&dist_x;
+    const double poly_x = *(const double *)&poly_x_;
     const double w = copysign(hcos3w(x > 1.5 ? x - 3.0 : x), 1.5 - x);
     return hsin(poly_x) * (0.53836 + w) / x;
 }
 
 static inline double hcos4w(double x) {
     const double x2 = x * x;
-    const double v = 0.1401771979623005 - 0.006191799490575123 * x2;
+    double v = 0.007302004975434134 - 0.00014005538895082734 * x2;
+    v = 0.1423771336785233 - v * x2;
     return 0.46164 - v * x2;
 }
 double Hamming4(double x) {
-    if (x < 1.0e-8)
+    if (x < 7.450580596923828e-9)
         return 1.0;
     const int round_x = (int)(x + 0.5);
-    const uint64_t sign = ((uint64_t)(round_x) << 63) | 0x3ff0000000000000;
-    const double poly_x = *(const double *)&sign * (x - (double)round_x);
+    const double dist_x = x - (double)round_x;
+    const uint64_t poly_x_ = ((uint64_t)round_x << 63) ^ *(const uint64_t *)&dist_x;
+    const double poly_x = *(const double *)&poly_x_;
     const double w = copysign(hcos4w(x > 2.0 ? x - 4.0 : x), 2.0 - x);
     return hsin(poly_x) * (0.53836 + w) / x;
 }

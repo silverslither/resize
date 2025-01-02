@@ -6,17 +6,11 @@
 double Triangle(double x);
 double Hermite(double x);
 
-double Lagrange2(double x);
-double Lagrange3(double x);
-
 double BSpline2(double x);
 double BSpline3(double x);
 
 double MitNet(double x);
 double CatRom(double x);
-
-double Lanczos3(double x);
-double Lanczos4(double x);
 
 double Hamming3(double x);
 double Hamming4(double x);
