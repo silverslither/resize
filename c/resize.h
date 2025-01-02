@@ -1,4 +1,4 @@
-// Copyright (c) 2024 silverslither.
+// Copyright (c) 2024-2025 silversliher.
 
 #ifndef RESIZE_RESIZE
 #define RESIZE_RESIZE

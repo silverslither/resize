@@ -1,4 +1,4 @@
-// Copyright (c) 2024 silverslither.
+// Copyright (c) 2024-2025 silverslither.
 
 import { Filter, resize } from "./resize.js";
 import { mul_alpha, div_alpha, srgb_encode, srgb_decode, get_sigmoidization_params, sigmoidal_contrast_increase, sigmoidal_contrast_decrease } from "./colour.js";

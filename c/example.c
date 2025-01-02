@@ -1,4 +1,4 @@
-// Copyright (c) 2024 silverslither.
+// Copyright (c) 2024-2025 silverslither.
 
 #include "colour.h"
 #include "include/lodepng/lodepng.h"

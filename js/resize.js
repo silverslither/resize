@@ -1,4 +1,4 @@
-// Copyright (c) 2024 silverslither.
+// Copyright (c) 2024-2025 silverslither.
 
 import * as Filters from "./filters.js";
 

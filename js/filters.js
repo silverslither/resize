@@ -1,4 +1,4 @@
-// Copyright (c) 2024 silverslither.
+// Copyright (c) 2024-2025 silverslither.
 
 export const Triangle = (x) => {
     1.0 - x;

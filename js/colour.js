@@ -18,13 +18,13 @@ export function div_alpha(arr) {
 
 export function srgb_encode(x) {
     if (x > 0.003130668442500634)
-        return 1.055 * Math.pow(x, 0.4166666666666667) - 0.055;
+        return 1.055 * x ** 0.4166666666666667 - 0.055;
     return 12.92 * x;
 }
 
 export function srgb_decode(x) {
     if (x > 0.04044823627710819)
-        return Math.pow(0.9478672985781991 * (x + 0.055), 2.4);
+        return (0.9478672985781991 * (x + 0.055)) ** 2.4;
     return 0.07739938080495357 * x;
 }
 
