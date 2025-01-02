@@ -161,9 +161,9 @@ int main(int argc, char **argv) {
 
 no_options:;
     // input img
-    unsigned char *_img;
+    unsigned char *input_u8;
     unsigned src_width, src_height;
-    unsigned err = lodepng_decode32_file(&_img, &src_width, &src_height, argv[1]);
+    unsigned err = lodepng_decode32_file(&input_u8, &src_width, &src_height, argv[1]);
     if (err) {
         fprintf(stderr, "error: lodepng %u\n", err);
         return 1;
@@ -189,26 +189,26 @@ no_options:;
     }
 
     // resize
-    double *img = u8_to_f64(_img, area, linearize, sigParamsPtr);
-    free(_img);
-    mul_alpha(img, area);
+    double *input_f64 = u8_to_f64(input_u8, area, linearize, sigParamsPtr);
+    free(input_u8);
+    mul_alpha(input_f64, area);
 
-    double *resized = resize(img, src_width, src_height, dst_width, dst_height, filter);
-    free(img);
+    double *output_f64 = resize(input_f64, src_width, src_height, dst_width, dst_height, filter);
+    free(input_f64);
 
     area = ((size_t)dst_width * (size_t)dst_height) << 2;
-    div_alpha(resized, area);
+    div_alpha(output_f64, area);
 
-    _img = f64_to_u8(resized, area, linearize, sigParamsPtr);
-    free(resized);
+    unsigned char *output_u8 = f64_to_u8(output_f64, area, linearize, sigParamsPtr);
+    free(output_f64);
 
     // output img
-    err = lodepng_encode32_file(argv[4], _img, dst_width, dst_height);
+    err = lodepng_encode32_file(argv[4], output_u8, dst_width, dst_height);
     if (err) {
         fprintf(stderr, "error: lodepng %u\n", err);
         return 1;
     }
-    free(_img);
+    free(output_u8);
 
     return 0;
 }

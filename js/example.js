@@ -2,13 +2,11 @@
 
 import { Filter, resize } from "./resize.js";
 import { mul_alpha, div_alpha, srgb_encode, srgb_decode, get_sigmoidization_params, sigmoidal_contrast_increase, sigmoidal_contrast_decrease } from "./colour.js";
-import { encode, decode } from "https://cdn.jsdelivr.net/npm/fast-png@6.2.0/+esm"
 
-let input, output, width, height, filterName, linearizeBox, beta, submit, err;
+let input, width, height, filterName, linearizeBox, beta, submit, err;
 
 document.addEventListener("DOMContentLoaded", () => {
     input = document.getElementById("input");
-    output = document.querySelector("a");
     width = document.getElementById("width");
     height = document.getElementById("height");
     filterName = document.getElementById("filter");
@@ -16,63 +14,52 @@ document.addEventListener("DOMContentLoaded", () => {
     beta = document.getElementById("beta");
     submit = document.querySelector("button");
     err = document.getElementById("err");
-    submit.addEventListener("click", main);
+    submit.addEventListener("click", listener);
     input.value = "";
 });
 
-async function main() {
+async function listener() {
     try {
         err.innerText = "";
-        const _file = input.files[0];
-        if (_file == null) {
+        const file = input.files[0];
+        if (file == null) {
             err.innerText += "error: no file selected";
             return;
         }
-
-        const src = expandChannels(decode(await _file.arrayBuffer()));
-
-        const dst_width = parseDimension(width.value, src.width);
-        if (dst_width === -1) {
-            err.innerText += `error: invalid width '${width.value}'\n`;
-            return;
-        }
-        const dst_height = parseDimension(height.value, src.height);
-        if (dst_height === -1) {
-            err.innerText += `error: invalid height '${height.value}'\n`;
-            return;
-        }
-        const filter = parseFilter(filterName.value);
-        const sigParams = parseSigmoidizationBeta(beta.value);
-        const linearize = linearizeBox.checked;
-
-        preprocess(src.data, linearize, sigParams);
-        mul_alpha(src.data);
-
-        const dst = resize(src.data, src.width, src.height, dst_width, dst_height, filter);
-
-        div_alpha(dst);
-        postprocess(dst, linearize, sigParams);
-
-        writeFileSync(`RESIZED_${_file.name}`, encodeArray(dst, dst_width, dst_height));
+        main(file);
     } catch (e) {
         err.innerText += e;
     }
 }
 
-function expandChannels(img) {
-    if (img.channels === 4)
-        return new Float64Array(img);
-    const area = img.width * img.height;
-    const newData = new Float64Array(area << 2);
-    for (let i = 0; i < area; i++) {
-        const offset_4 = i << 2;
-        const offset_3 = i * 3;
-        newData[offset_4 + 0] = img.data[offset_3 + 0];
-        newData[offset_4 + 1] = img.data[offset_3 + 1];
-        newData[offset_4 + 2] = img.data[offset_3 + 2];
-        newData[offset_4 + 3] = 255.0;
+async function main(file) {
+    const src = await decode(file);
+    src.data = new Float64Array(src.data);
+
+    const dst_width = parseDimension(width.value, src.width);
+    if (dst_width === -1) {
+        err.innerText += `error: invalid width '${width.value}'\n`;
+        return;
     }
-    return { data: newData, width: img.width, height: img.height };
+    const dst_height = parseDimension(height.value, src.height);
+    if (dst_height === -1) {
+        err.innerText += `error: invalid height '${height.value}'\n`;
+        return;
+    }
+    const filter = parseFilter(filterName.value);
+    const sigParams = parseSigmoidizationBeta(beta.value);
+    const linearize = linearizeBox.checked;
+
+    console.log(src.data);
+    preprocess(src.data, linearize, sigParams);
+    mul_alpha(src.data);
+
+    const dst = resize(src.data, src.width, src.height, dst_width, dst_height, filter);
+
+    div_alpha(dst);
+    postprocess(dst, linearize, sigParams);
+
+    writeFileSync(`RESIZED_${file.name}`, await encode(dst, dst_width, dst_height));
 }
 
 function preprocess(arr, linearize, params) {
@@ -151,14 +138,50 @@ function parseSigmoidizationBeta(str) {
     return get_sigmoidization_params(beta);
 }
 
-function encodeArray(typedArray, width, height) {
-    if (!(typedArray instanceof Uint8ClampedArray) && !(typedArray instanceof Uint8Array))
-        typedArray = new Uint8ClampedArray(typedArray);
-    return new Blob([encode({ data: typedArray, width, height })]);
+async function decode(file) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.addEventListener("load", async () => {
+            const image = new Image();
+            image.src = reader.result;
+            await image.decode();
+            const canvas = document.createElement("canvas");
+            const context = canvas.getContext("2d");
+            canvas.width = image.naturalWidth;
+            canvas.height = image.naturalHeight;
+            context.drawImage(image, 0, 0);
+            document.body.append(canvas);
+            const data = context.getImageData(0, 0, image.naturalWidth, image.naturalHeight);
+            resolve({ data: data.data, width: data.width, height: data.height });
+        });
+        reader.readAsDataURL(file);
+    });
+}
+
+async function encode(dataArray, width, height) {
+    return new Promise((resolve, reject) => {
+        if (!(dataArray instanceof Uint8ClampedArray))
+            dataArray = new Uint8ClampedArray(dataArray);
+        const data = new ImageData(dataArray, width, height);
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+        canvas.width = width;
+        canvas.height = height;
+        context.putImageData(data, 0, 0);
+        document.body.append(canvas);
+        canvas.toBlob((blob) => {
+            if (blob == null)
+                reject();
+            else
+                resolve(blob);
+        });
+    });
 }
 
 function writeFileSync(name, blob) {
-    output.href = URL.createObjectURL(blob);
-    output.download = name;
-    output.click();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(a.href);
 }
