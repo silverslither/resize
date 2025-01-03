@@ -150,7 +150,6 @@ async function decode(file) {
             canvas.width = image.naturalWidth;
             canvas.height = image.naturalHeight;
             context.drawImage(image, 0, 0);
-            document.body.append(canvas);
             const data = context.getImageData(0, 0, image.naturalWidth, image.naturalHeight);
             resolve({ data: data.data, width: data.width, height: data.height });
         });
@@ -168,7 +167,6 @@ async function encode(dataArray, width, height) {
         canvas.width = width;
         canvas.height = height;
         context.putImageData(data, 0, 0);
-        document.body.append(canvas);
         canvas.toBlob((blob) => {
             if (blob == null)
                 reject();
