@@ -3,6 +3,7 @@
 #include "resize.h"
 #include "filters.h"
 #include <math.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -17,7 +18,7 @@ static inline s32 max(s32 x, s32 y) {
 }
 
 static double *imgcpy(const double *src, s32 width, s32 height) {
-    size_t size = ((size_t)width * (size_t)height) << 5;
+    size_t size = ((size_t)width * (size_t)height * sizeof(double)) << 2;
     double *dst = malloc(size);
     if (!dst)
         return NULL;
@@ -34,7 +35,7 @@ double *sample(const double *src, s32 src_width, s32 src_height, s32 dst_width, 
     const double x_factor = (double)src_width / dst_width;
     const double y_factor = (double)src_height / dst_height;
 
-    double *dst = malloc(((size_t)dst_width * (size_t)dst_height) << 5);
+    double *dst = malloc(((size_t)dst_width * (size_t)dst_height * sizeof(double)) << 2);
     if (!dst)
         return NULL;
 
@@ -54,137 +55,137 @@ double *sample(const double *src, s32 src_width, s32 src_height, s32 dst_width, 
     return dst;
 }
 
-static double *hscale(const double *src, s32 src_width, s32 height, s32 dst_width) {
-    const s32 max_high_x = src_width - 1;
+static double *h_filter(const double *src, s32 src_width, s32 height, s32 dst_width, const s32 *bounds, const double *coeffs, size_t support) {
     const s32 adj_src_width = src_width << 2;
-    const s32 adj_dst_width = dst_width << 2;
-    const s32 adj_src_area = adj_src_width * height;
-    const double factor = (double)src_width / dst_width;
-    const double inv_factor = (double)dst_width / src_width;
-
-    double *dst = calloc((size_t)height * (size_t)adj_dst_width, 8);
+    double *dst = calloc(((size_t)dst_width * (size_t)height) << 2, 8);
     if (!dst)
         return NULL;
 
-    s32 dst_offset = 0;
-    for (s32 x = 0; x < dst_width; x++, dst_offset += 4) {
-        const double min_mapped_x = factor * x;
-        const double max_mapped_x = min_mapped_x + factor;
-        s32 min_x = (s32)ceil(min_mapped_x);
-        s32 max_x = (s32)floor(max_mapped_x);
+    const s32 *bounds_ptr;
+    const double *coeffs_ptr;
+    s32 src_offset = 0;
+    s32 dst_pixel = 0;
+    for (s32 y = 0; y < height; y++, src_offset += adj_src_width) {
+        coeffs_ptr = coeffs;
+        bounds_ptr = bounds;
 
-        s32 dst_pixel = dst_offset;
+        for (s32 x = 0; x < dst_width; x++, bounds_ptr += 2, coeffs_ptr += support, dst_pixel += 4) {
+            const s32 min_x = bounds_ptr[0];
+            const s32 max_x = bounds_ptr[1];
 
-        if (max_x < min_x) {
-            for (s32 src_pixel = max_x << 2; src_pixel < adj_src_area; src_pixel += adj_src_width, dst_pixel += adj_dst_width) {
-                dst[dst_pixel + 0] = src[src_pixel + 0];
-                dst[dst_pixel + 1] = src[src_pixel + 1];
-                dst[dst_pixel + 2] = src[src_pixel + 2];
-                dst[dst_pixel + 3] = src[src_pixel + 3];
+            s32 src_pixel = src_offset + (min_x << 2);
+            for (s32 s = min_x, i = 0; s <= max_x; s++, i++, src_pixel += 4) {
+                const double weight = coeffs_ptr[i];
+
+                dst[dst_pixel + 0] += src[src_pixel + 0] * weight;
+                dst[dst_pixel + 1] += src[src_pixel + 1] * weight;
+                dst[dst_pixel + 2] += src[src_pixel + 2] * weight;
+                dst[dst_pixel + 3] += src[src_pixel + 3] * weight;
             }
-            continue;
-        }
-
-        const s32 low_x = max(min_x - 1, 0) << 2;
-        const s32 high_x = min(max_x, max_high_x) << 2;
-        const double low_mult = (double)min_x - min_mapped_x;
-        const double high_mult = max_mapped_x - (double)max_x;
-        min_x <<= 2;
-        max_x <<= 2;
-
-        for (s32 y = 0; y < adj_src_area; y += adj_src_width, dst_pixel += adj_dst_width) {
-            s32 src_pixel = y + low_x;
-            dst[dst_pixel + 0] += src[src_pixel + 0] * low_mult;
-            dst[dst_pixel + 1] += src[src_pixel + 1] * low_mult;
-            dst[dst_pixel + 2] += src[src_pixel + 2] * low_mult;
-            dst[dst_pixel + 3] += src[src_pixel + 3] * low_mult;
-
-            const s32 src_max = y + max_x;
-            for (src_pixel = y + min_x; src_pixel < src_max; src_pixel += 4) {
-                dst[dst_pixel + 0] += src[src_pixel + 0];
-                dst[dst_pixel + 1] += src[src_pixel + 1];
-                dst[dst_pixel + 2] += src[src_pixel + 2];
-                dst[dst_pixel + 3] += src[src_pixel + 3];
-            }
-
-            src_pixel = y + high_x;
-            dst[dst_pixel + 0] += src[src_pixel + 0] * high_mult;
-            dst[dst_pixel + 1] += src[src_pixel + 1] * high_mult;
-            dst[dst_pixel + 2] += src[src_pixel + 2] * high_mult;
-            dst[dst_pixel + 3] += src[src_pixel + 3] * high_mult;
-            dst[dst_pixel + 0] *= inv_factor;
-            dst[dst_pixel + 1] *= inv_factor;
-            dst[dst_pixel + 2] *= inv_factor;
-            dst[dst_pixel + 3] *= inv_factor;
         }
     }
 
     return dst;
 }
 
-static double *vscale(const double *src, s32 width, s32 src_height, s32 dst_height) {
-    const s32 max_high_y = src_height - 1;
+static double *v_filter(const double *src, s32 width, s32 dst_height, const s32 *bounds, const double *coeffs, size_t support) {
     const s32 adj_width = width << 2;
-    const double factor = (double)src_height / dst_height;
-    const double inv_factor = (double)dst_height / src_height;
-
     double *dst = calloc((size_t)adj_width * (size_t)dst_height, 8);
     if (!dst)
         return NULL;
 
-    s32 dst_pixel = 0;
-    for (s32 y = 0; y < dst_height; y++) {
-        const double min_mapped_y = factor * y;
-        const double max_mapped_y = min_mapped_y + factor;
-        s32 min_y = (s32)ceil(min_mapped_y);
-        s32 max_y = (s32)floor(max_mapped_y);
+    const s32 *bounds_ptr = bounds;
+    const double *coeffs_ptr = coeffs;
+    s32 dst_offset = 0;
+    for (s32 y = 0; y < dst_height; y++, bounds_ptr += 2, coeffs_ptr += support, dst_offset += adj_width) {
+        const s32 min_y = bounds_ptr[0];
+        const s32 max_y = bounds_ptr[1];
 
-        if (max_y < min_y) {
-            const s32 src_offset = adj_width * max_y;
-            const s32 src_max = src_offset + adj_width;
-            for (s32 src_pixel = src_offset; src_pixel < src_max; src_pixel += 4, dst_pixel += 4) {
-                dst[dst_pixel + 0] = src[src_pixel + 0];
-                dst[dst_pixel + 1] = src[src_pixel + 1];
-                dst[dst_pixel + 2] = src[src_pixel + 2];
-                dst[dst_pixel + 3] = src[src_pixel + 3];
+        s32 src_pixel = adj_width * min_y;
+        for (s32 s = min_y, i = 0; s <= max_y; s++, i++) {
+            const double weight = coeffs_ptr[i];
+
+            s32 dst_pixel = dst_offset;
+            for (s32 x = 0; x < width; x++, src_pixel += 4, dst_pixel += 4) {
+                dst[dst_pixel + 0] += src[src_pixel + 0] * weight;
+                dst[dst_pixel + 1] += src[src_pixel + 1] * weight;
+                dst[dst_pixel + 2] += src[src_pixel + 2] * weight;
+                dst[dst_pixel + 3] += src[src_pixel + 3] * weight;
             }
-            continue;
-        }
-
-        const s32 low_y = adj_width * max(min_y - 1, 0);
-        const s32 high_y = adj_width * min(max_y, max_high_y);
-        const double low_mult = (double)min_y - min_mapped_y;
-        const double high_mult = max_mapped_y - (double)max_y;
-        min_y *= adj_width;
-        max_y *= adj_width;
-
-        for (s32 x = 0; x < adj_width; x += 4, dst_pixel += 4) {
-            s32 src_pixel = x + low_y;
-            dst[dst_pixel + 0] += src[src_pixel + 0] * low_mult;
-            dst[dst_pixel + 1] += src[src_pixel + 1] * low_mult;
-            dst[dst_pixel + 2] += src[src_pixel + 2] * low_mult;
-            dst[dst_pixel + 3] += src[src_pixel + 3] * low_mult;
-
-            const s32 src_max = x + max_y;
-            for (src_pixel = x + min_y; src_pixel < src_max; src_pixel += adj_width) {
-                dst[dst_pixel + 0] += src[src_pixel + 0];
-                dst[dst_pixel + 1] += src[src_pixel + 1];
-                dst[dst_pixel + 2] += src[src_pixel + 2];
-                dst[dst_pixel + 3] += src[src_pixel + 3];
-            }
-
-            src_pixel = x + high_y;
-            dst[dst_pixel + 0] += src[src_pixel + 0] * high_mult;
-            dst[dst_pixel + 1] += src[src_pixel + 1] * high_mult;
-            dst[dst_pixel + 2] += src[src_pixel + 2] * high_mult;
-            dst[dst_pixel + 3] += src[src_pixel + 3] * high_mult;
-            dst[dst_pixel + 0] *= inv_factor;
-            dst[dst_pixel + 1] *= inv_factor;
-            dst[dst_pixel + 2] *= inv_factor;
-            dst[dst_pixel + 3] *= inv_factor;
         }
     }
 
+    return dst;
+}
+
+static bool gen_area_filter(s32 **_bounds, double **_coeffs, size_t *_support, s32 src, s32 dst) {
+    const double factor = (double)src / dst;
+    const double inv_factor = (double)dst / src;
+    const size_t support = (size_t)ceil(factor) + 1;
+
+    s32 *bounds = malloc(2 * (size_t)dst * sizeof(s32));
+    if (!bounds)
+        return true;
+
+    double *coeffs = malloc(support * (size_t)dst * sizeof(double));
+    if (!coeffs) {
+        free(bounds);
+        return true;
+    }
+
+    *_bounds = bounds;
+    *_coeffs = coeffs;
+    *_support = support;
+
+    for (s32 z = 0; z < dst; z++, bounds += 2, coeffs += support) {
+        const double min_mapped_z = factor * z;
+        const double max_mapped_z = min_mapped_z + factor;
+        s32 min_z = (s32)floor(min_mapped_z + 1.0);
+        s32 max_z = (s32)ceil(max_mapped_z - 1.0);
+
+        if (max_z < min_z) {
+            bounds[1] = bounds[0] = max_z;
+            coeffs[0] = 1.0;
+            continue;
+        }
+
+        bounds[0] = min_z - 1;
+        bounds[1] = max_z;
+        coeffs[0] = inv_factor * ((double)min_z - min_mapped_z);
+        s32 i = 1;
+        for (s32 s = min_z; s < max_z; s++, i++)
+            coeffs[i] = inv_factor;
+        coeffs[i] = inv_factor * (max_mapped_z - (double)max_z);
+    }
+
+    return false;
+}
+
+static double *h_scale(const double *src, s32 src_width, s32 height, s32 dst_width) {
+    s32 *bounds;
+    double *coeffs;
+    size_t support;
+    if (gen_area_filter(&bounds, &coeffs, &support, src_width, dst_width))
+        return NULL;
+
+    double *dst = h_filter(src, src_width, height, dst_width, bounds, coeffs, support);
+
+    free(coeffs);
+    free(bounds);
+    return dst;
+}
+
+static double *v_scale(const double *src, s32 width, s32 src_height, s32 dst_height) {
+    s32 *bounds;
+    double *coeffs;
+    size_t support;
+    if (gen_area_filter(&bounds, &coeffs, &support, src_height, dst_height))
+        return NULL;
+
+    double *dst = v_filter(src, width, dst_height, bounds, coeffs, support);
+
+    free(coeffs);
+    free(bounds);
     return dst;
 }
 
@@ -195,123 +196,102 @@ double *scale(const double *src, s32 src_width, s32 src_height, s32 dst_width, s
     if (dst_width == src_width) {
         if (dst_height == src_height)
             return imgcpy(src, src_width, src_height);
-        return vscale(src, src_width, src_height, dst_height);
+        return v_scale(src, src_width, src_height, dst_height);
     } else if (dst_height == src_height) {
-        return hscale(src, src_width, src_height, dst_width);
+        return h_scale(src, src_width, src_height, dst_width);
     }
 
     const double x_factor = (double)dst_width / src_width;
     const double y_factor = (double)dst_height / src_height;
 
-    if (x_factor >= y_factor) {
-        double *temp = vscale(src, src_width, src_height, dst_height);
+    if (x_factor > y_factor) {
+        double *temp = v_scale(src, src_width, src_height, dst_height);
         if (!temp)
             return NULL;
 
-        double *ret = hscale(temp, src_width, dst_height, dst_width);
+        double *ret = h_scale(temp, src_width, dst_height, dst_width);
         free(temp);
         return ret;
     } else {
-        double *temp = hscale(src, src_width, src_height, dst_width);
+        double *temp = h_scale(src, src_width, src_height, dst_width);
         if (!temp)
             return NULL;
 
-        double *ret = vscale(temp, dst_width, src_height, dst_height);
+        double *ret = v_scale(temp, dst_width, src_height, dst_height);
         free(temp);
         return ret;
     }
 }
 
-static double *hreconstruct(const double *src, s32 src_width, s32 height, s32 dst_width, double (*filter)(double), double window, double norm) {
-    const s32 max_s = src_width - 1;
-    const s32 adj_src_width = src_width << 2;
-    const s32 adj_dst_width = dst_width << 2;
-    const s32 adj_dst_area = adj_dst_width * height;
-    const double factor = (double)src_width / dst_width;
-
-    double *dst = calloc((size_t)height * (size_t)adj_dst_width, 8);
-    if (!dst)
-        return NULL;
-
+static bool gen_discrete_filter(s32 **_bounds, double **_coeffs, size_t *_support, s32 src, s32 dst, double (*filter)(double), double window, double norm) {
+    const s32 max_s = src - 1;
+    const double factor = (double)src / dst;
     const double inv_filter_scale = q_fmax(factor, 1.0);
     const double filter_scale = 1.0 / inv_filter_scale;
     window *= inv_filter_scale;
+    size_t support_val = (size_t)ceil(2.0 * window);
 
-    s32 dst_offset = 0;
-    for (s32 x = 0; x < dst_width; x++, dst_offset += 4) {
-        const double mapped_x = factor * (x + 0.5) - 0.5;
-        const s32 min_x = max((s32)ceil(mapped_x - window), 0);
-        const s32 max_x = min((s32)floor(mapped_x + window), max_s);
-        double weight_total = 0;
+    s32 *bounds = malloc(2 * (size_t)dst * sizeof(s32));
+    if (!bounds)
+        return true;
 
-        s32 src_offset = min_x << 2;
-        for (s32 s = min_x; s <= max_x; s++, src_offset += 4) {
+    double *coeffs = malloc(support_val * (size_t)dst * sizeof(double));
+    if (!coeffs) {
+        free(bounds);
+        return true;
+    }
+
+    *_bounds = bounds;
+    *_coeffs = coeffs;
+    *_support = support_val;
+
+    for (s32 z = 0; z < dst; z++, bounds += 2, coeffs += support_val) {
+        const double mapped_x = factor * (z + 0.5) - 0.5;
+        const s32 min_z = max((s32)floor(mapped_x - window + 1.0), 0);
+        const s32 max_z = min((s32)ceil(mapped_x + window - 1.0), max_s);
+        bounds[0] = min_z;
+        bounds[1] = max_z;
+
+        double weight_total = 0.0;
+        for (s32 s = min_z, i = 0; s <= max_z; s++, i++) {
             const double weight = filter(fabs(mapped_x - s) * filter_scale);
+            coeffs[i] = weight;
             weight_total += weight;
-
-            for (s32 src_pixel = src_offset, dst_pixel = dst_offset; dst_pixel < adj_dst_area; src_pixel += adj_src_width, dst_pixel += adj_dst_width) {
-                dst[dst_pixel + 0] += src[src_pixel + 0] * weight;
-                dst[dst_pixel + 1] += src[src_pixel + 1] * weight;
-                dst[dst_pixel + 2] += src[src_pixel + 2] * weight;
-                dst[dst_pixel + 3] += src[src_pixel + 3] * weight;
-            }
         }
 
         weight_total = norm / weight_total;
-        for (s32 dst_pixel = dst_offset; dst_pixel < adj_dst_area; dst_pixel += adj_dst_width) {
-            dst[dst_pixel + 0] *= weight_total;
-            dst[dst_pixel + 1] *= weight_total;
-            dst[dst_pixel + 2] *= weight_total;
-            dst[dst_pixel + 3] *= weight_total;
-        }
+        for (s32 s = min_z, i = 0; s <= max_z; s++, i++)
+            coeffs[i] *= weight_total;
     }
 
+    return false;
+}
+
+static double *h_reconstruct(const double *src, s32 src_width, s32 height, s32 dst_width, double (*filter)(double), double window, double norm) {
+    s32 *bounds;
+    double *coeffs;
+    size_t support;
+    if (gen_discrete_filter(&bounds, &coeffs, &support, src_width, dst_width, filter, window, norm))
+        return NULL;
+
+    double *dst = h_filter(src, src_width, height, dst_width, bounds, coeffs, support);
+
+    free(coeffs);
+    free(bounds);
     return dst;
 }
 
-static double *vreconstruct(const double *src, s32 width, s32 src_height, s32 dst_height, double (*filter)(double), double window, double norm) {
-    const s32 max_s = src_height - 1;
-    const s32 adj_width = width << 2;
-    const double factor = (double)src_height / dst_height;
-
-    double *dst = calloc((size_t)adj_width * (size_t)dst_height, 8);
-    if (!dst)
+static double *v_reconstruct(const double *src, s32 width, s32 src_height, s32 dst_height, double (*filter)(double), double window, double norm) {
+    s32 *bounds;
+    double *coeffs;
+    size_t support;
+    if (gen_discrete_filter(&bounds, &coeffs, &support, src_height, dst_height, filter, window, norm))
         return NULL;
 
-    const double inv_filter_scale = q_fmax(factor, 1.0);
-    const double filter_scale = 1.0 / inv_filter_scale;
-    window *= inv_filter_scale;
+    double *dst = v_filter(src, width, dst_height, bounds, coeffs, support);
 
-    s32 dst_offset = 0;
-    s32 ndst_offset = adj_width;
-    for (s32 y = 0; y < dst_height; y++, dst_offset = ndst_offset, ndst_offset += adj_width) {
-        const double mapped_y = factor * (y + 0.5) - 0.5;
-        const s32 min_y = max((s32)ceil(mapped_y - window), 0);
-        const s32 max_y = min((s32)floor(mapped_y + window), max_s);
-        double weight_total = 0;
-
-        s32 src_offset = adj_width * min_y;
-        for (s32 s = min_y; s <= max_y; s++, src_offset += adj_width) {
-            const double weight = filter(fabs(mapped_y - s) * filter_scale);
-            weight_total += weight;
-
-            for (s32 src_pixel = src_offset, dst_pixel = dst_offset; dst_pixel < ndst_offset; src_pixel += 4, dst_pixel += 4) {
-                dst[dst_pixel + 0] += src[src_pixel + 0] * weight;
-                dst[dst_pixel + 1] += src[src_pixel + 1] * weight;
-                dst[dst_pixel + 2] += src[src_pixel + 2] * weight;
-                dst[dst_pixel + 3] += src[src_pixel + 3] * weight;
-            }
-        }
-
-        weight_total = norm / weight_total;
-        for (s32 dst_pixel = dst_offset; dst_pixel < ndst_offset; dst_pixel += 4) {
-            dst[dst_pixel + 0] *= weight_total;
-            dst[dst_pixel + 1] *= weight_total;
-            dst[dst_pixel + 2] *= weight_total;
-            dst[dst_pixel + 3] *= weight_total;
-        }
-    }
-
+    free(coeffs);
+    free(bounds);
     return dst;
 }
 
@@ -323,35 +303,35 @@ double *reconstruct(const double *src, s32 src_width, s32 src_height, s32 dst_wi
         if (dst_width == src_width) {
             if (dst_height == src_height)
                 return imgcpy(src, src_width, src_height);
-            return vreconstruct(src, src_width, src_height, dst_height, filter, window, norm);
+            return v_reconstruct(src, src_width, src_height, dst_height, filter, window, norm);
         } else if (dst_height == src_height) {
-            return hreconstruct(src, src_width, src_height, dst_width, filter, window, norm);
+            return h_reconstruct(src, src_width, src_height, dst_width, filter, window, norm);
         }
     }
 
     const double x_factor = (double)dst_width / src_width;
     const double y_factor = (double)dst_height / src_height;
 
-    if (x_factor >= y_factor) {
-        double *temp = vreconstruct(src, src_width, src_height, dst_height, filter, window, norm);
+    if (x_factor > y_factor) {
+        double *temp = v_reconstruct(src, src_width, src_height, dst_height, filter, window, norm);
         if (!temp)
             return NULL;
 
-        double *ret = hreconstruct(temp, src_width, dst_height, dst_width, filter, window, norm);
+        double *ret = h_reconstruct(temp, src_width, dst_height, dst_width, filter, window, norm);
         free(temp);
         return ret;
     } else {
-        double *temp = hreconstruct(src, src_width, src_height, dst_width, filter, window, norm);
+        double *temp = h_reconstruct(src, src_width, src_height, dst_width, filter, window, norm);
         if (!temp)
             return NULL;
 
-        double *ret = vreconstruct(temp, dst_width, src_height, dst_height, filter, window, norm);
+        double *ret = v_reconstruct(temp, dst_width, src_height, dst_height, filter, window, norm);
         free(temp);
         return ret;
     }
 }
 
-static void hiconvolve(double *img, s32 width, s32 height, const double *L, int m, double c) {
+static void h_iconvolve(double *img, s32 width, s32 height, const double *L, int m, double c) {
     int n = m - 1;
     if (m >= width)
         n = m = width - 1;
@@ -411,7 +391,7 @@ static void hiconvolve(double *img, s32 width, s32 height, const double *L, int 
     }
 }
 
-static void viconvolve(double *img, s32 width, s32 height, const double *L, int m, double c) {
+static void v_iconvolve(double *img, s32 width, s32 height, const double *L, int m, double c) {
     int n = m - 1;
     if (m >= height)
         n = m = height - 1;
@@ -474,54 +454,54 @@ static void viconvolve(double *img, s32 width, s32 height, const double *L, int 
     }
 }
 
-static double *hreconstruct_iconvolve(const double *src, s32 src_width, s32 height, s32 dst_width, double (*filter)(double), double window, double norm, const double *L, int m, double c) {
+static double *h_reconstruct_iconvolve(const double *src, s32 src_width, s32 height, s32 dst_width, double (*filter)(double), double window, double norm, const double *L, int m, double c) {
     if (dst_width > src_width) {
         if (src_width == 1)
-            return hreconstruct(src, src_width, height, dst_width, filter, window, 1.0);
+            return h_reconstruct(src, src_width, height, dst_width, filter, window, 1.0);
 
         double *temp = imgcpy(src, src_width, height);
         if (!temp)
             return NULL;
-        hiconvolve(temp, src_width, height, L, m, c);
+        h_iconvolve(temp, src_width, height, L, m, c);
 
-        double *ret = hreconstruct(temp, src_width, height, dst_width, filter, window, norm);
+        double *ret = h_reconstruct(temp, src_width, height, dst_width, filter, window, norm);
         free(temp);
         return ret;
     } else {
         if (dst_width == 1)
-            return hreconstruct(src, src_width, height, dst_width, filter, window, 1.0);
+            return h_reconstruct(src, src_width, height, dst_width, filter, window, 1.0);
 
-        double *ret = hreconstruct(src, src_width, height, dst_width, filter, window, norm);
+        double *ret = h_reconstruct(src, src_width, height, dst_width, filter, window, norm);
         if (!ret)
             return NULL;
 
-        hiconvolve(ret, dst_width, height, L, m, c);
+        h_iconvolve(ret, dst_width, height, L, m, c);
         return ret;
     }
 }
 
-static double *vreconstruct_iconvolve(const double *src, s32 width, s32 src_height, s32 dst_height, double (*filter)(double), double window, double norm, const double *L, int m, double c) {
+static double *v_reconstruct_iconvolve(const double *src, s32 width, s32 src_height, s32 dst_height, double (*filter)(double), double window, double norm, const double *L, int m, double c) {
     if (dst_height > src_height) {
         if (src_height == 1)
-            return vreconstruct(src, width, src_height, dst_height, filter, window, 1.0);
+            return v_reconstruct(src, width, src_height, dst_height, filter, window, 1.0);
 
         double *temp = imgcpy(src, width, src_height);
         if (!temp)
             return NULL;
-        viconvolve(temp, width, src_height, L, m, c);
+        v_iconvolve(temp, width, src_height, L, m, c);
 
-        double *ret = vreconstruct(temp, width, src_height, dst_height, filter, window, norm);
+        double *ret = v_reconstruct(temp, width, src_height, dst_height, filter, window, norm);
         free(temp);
         return ret;
     } else {
         if (dst_height == 1)
-            return vreconstruct(src, width, src_height, dst_height, filter, window, 1.0);
+            return v_reconstruct(src, width, src_height, dst_height, filter, window, 1.0);
 
-        double *ret = vreconstruct(src, width, src_height, dst_height, filter, window, norm);
+        double *ret = v_reconstruct(src, width, src_height, dst_height, filter, window, norm);
         if (!ret)
             return NULL;
 
-        viconvolve(ret, width, dst_height, L, m, c);
+        v_iconvolve(ret, width, dst_height, L, m, c);
         return ret;
     }
 }
@@ -534,29 +514,29 @@ double *reconstruct_iconvolve(const double *src, s32 src_width, s32 src_height, 
         if (dst_width == src_width) {
             if (dst_height == src_height)
                 return imgcpy(src, src_width, src_height);
-            return vreconstruct_iconvolve(src, src_width, src_height, dst_height, filter, window, norm, L, m, c);
+            return v_reconstruct_iconvolve(src, src_width, src_height, dst_height, filter, window, norm, L, m, c);
         } else if (dst_height == src_height) {
-            return hreconstruct_iconvolve(src, src_width, src_height, dst_width, filter, window, norm, L, m, c);
+            return h_reconstruct_iconvolve(src, src_width, src_height, dst_width, filter, window, norm, L, m, c);
         }
     }
 
     const double x_factor = (double)dst_width / src_width;
     const double y_factor = (double)dst_height / src_height;
 
-    if (x_factor >= y_factor) {
-        double *temp = vreconstruct_iconvolve(src, src_width, src_height, dst_height, filter, window, norm, L, m, c);
+    if (x_factor > y_factor) {
+        double *temp = v_reconstruct_iconvolve(src, src_width, src_height, dst_height, filter, window, norm, L, m, c);
         if (!temp)
             return NULL;
 
-        double *ret = hreconstruct_iconvolve(temp, src_width, dst_height, dst_width, filter, window, norm, L, m, c);
+        double *ret = h_reconstruct_iconvolve(temp, src_width, dst_height, dst_width, filter, window, norm, L, m, c);
         free(temp);
         return ret;
     } else {
-        double *temp = hreconstruct_iconvolve(src, src_width, src_height, dst_width, filter, window, norm, L, m, c);
+        double *temp = h_reconstruct_iconvolve(src, src_width, src_height, dst_width, filter, window, norm, L, m, c);
         if (!temp)
             return NULL;
 
-        double *ret = vreconstruct_iconvolve(temp, dst_width, src_height, dst_height, filter, window, norm, L, m, c);
+        double *ret = v_reconstruct_iconvolve(temp, dst_width, src_height, dst_height, filter, window, norm, L, m, c);
         free(temp);
         return ret;
     }

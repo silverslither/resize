@@ -209,7 +209,7 @@ int main(int argc, char **argv) {
 no_options:
     // input
     FILE *input_file = fopen(argv[1], "rb");
-    assert(input_file, "error: failed to open '%s' for reading\n", argv[2]);
+    assert(input_file, "error: failed to open '%s' for reading\n", argv[1]);
 
     RGBA_NonPremul_DecodeImageCallbacks callbacks;
     wuffs_aux::sync_io::FileInput input(input_file);
@@ -240,6 +240,7 @@ no_options:
     mul_alpha(input_f64, area);
 
     double *output_f64 = resize(input_f64, src_width, src_height, dst_width, dst_height, filter);
+    assert(output_f64, "error: out of memory");
     free(input_f64);
 
     area = (static_cast<size_t>(dst_width) * static_cast<size_t>(dst_height)) << 2;

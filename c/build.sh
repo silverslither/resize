@@ -19,7 +19,7 @@ $CC $CFLAGS resize.c
 $CC $CFLAGS colour.c
 $CXX $CXXFLAGS example.cpp
 
-$CXX -lm -o resize *.o -s
+$CXX -lm -o resize *.o
 
 mkdir -p build
 mv resize build
