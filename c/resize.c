@@ -201,10 +201,10 @@ double *scale(const double *src, s32 src_width, s32 src_height, s32 dst_width, s
         return h_scale(src, src_width, src_height, dst_width);
     }
 
-    const double x_factor = (double)dst_width / src_width;
-    const double y_factor = (double)dst_height / src_height;
+    const size_t h_intermediate = dst_width * src_height;
+    const size_t v_intermediate = dst_height * src_width;
 
-    if (x_factor > y_factor) {
+    if (h_intermediate >= v_intermediate) {
         double *temp = v_scale(src, src_width, src_height, dst_height);
         if (!temp)
             return NULL;
@@ -309,10 +309,10 @@ double *reconstruct(const double *src, s32 src_width, s32 src_height, s32 dst_wi
         }
     }
 
-    const double x_factor = (double)dst_width / src_width;
-    const double y_factor = (double)dst_height / src_height;
+    const size_t h_intermediate = dst_width * src_height;
+    const size_t v_intermediate = dst_height * src_width;
 
-    if (x_factor > y_factor) {
+    if (h_intermediate >= v_intermediate) {
         double *temp = v_reconstruct(src, src_width, src_height, dst_height, filter, window, norm);
         if (!temp)
             return NULL;
@@ -520,10 +520,10 @@ double *reconstruct_iconvolve(const double *src, s32 src_width, s32 src_height, 
         }
     }
 
-    const double x_factor = (double)dst_width / src_width;
-    const double y_factor = (double)dst_height / src_height;
+    const size_t h_intermediate = dst_width * src_height;
+    const size_t v_intermediate = dst_height * src_width;
 
-    if (x_factor > y_factor) {
+    if (h_intermediate >= v_intermediate) {
         double *temp = v_reconstruct_iconvolve(src, src_width, src_height, dst_height, filter, window, norm, L, m, c);
         if (!temp)
             return NULL;
