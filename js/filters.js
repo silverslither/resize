@@ -77,7 +77,7 @@ export const Hamming4 = (x) => {
     return hsin(poly_x) * (0.53836 + (flip ? -w : w)) / x;
 };
 
-export const L_bspline2i = [
+export const L_bspline2i = new Float64Array([
     0.14583333333333334,
     0.17142857142857143,
     0.1715686274509804,
@@ -89,9 +89,9 @@ export const L_bspline2i = [
     0.17157287525380713,
     0.17157287525380982,
     0.1715728752538099
-];
+]);
 
-export const L_bspline3i = [
+export const L_bspline3i = new Float64Array([
     0.20833333333333334,
     0.26666666666666666,
     0.26785714285714285,
@@ -106,9 +106,9 @@ export const L_bspline3i = [
     0.26794919243111803,
     0.26794919243112236,
     0.2679491924311227
-];
+]);
 
-export const L_omoms3 = [
+export const L_omoms3 = new Float64Array([
     0.2490842490842491,
     0.33986928104575165,
     0.34362717574396406,
@@ -127,7 +127,7 @@ export const L_omoms3 = [
     0.34413115425504975,
     0.34413115425505014,
     0.3441311542550502
-];
+]);
 
 // Normalized to 5.25
 export const OMOMS3 = (x) => {

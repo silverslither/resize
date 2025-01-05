@@ -140,8 +140,8 @@ static bool gen_area_filter(s32 **_bounds, double **_coeffs, size_t *_support, s
     for (s32 z = 0; z < dst; z++, bounds += 2, coeffs += support) {
         const double min_mapped_z = factor * z;
         const double max_mapped_z = min_mapped_z + factor;
-        s32 min_z = (s32)floor(min_mapped_z + 1.0);
-        s32 max_z = (s32)ceil(max_mapped_z - 1.0);
+        const s32 min_z = (s32)floor(min_mapped_z + 1.0);
+        const s32 max_z = (s32)ceil(max_mapped_z - 1.0);
 
         if (max_z < min_z) {
             bounds[1] = bounds[0] = max_z;
@@ -204,7 +204,7 @@ double *scale(const double *src, s32 src_width, s32 src_height, s32 dst_width, s
     const size_t h_intermediate = dst_width * src_height;
     const size_t v_intermediate = dst_height * src_width;
 
-    if (h_intermediate >= v_intermediate) {
+    if (h_intermediate > v_intermediate) {
         double *temp = v_scale(src, src_width, src_height, dst_height);
         if (!temp)
             return NULL;
@@ -229,13 +229,13 @@ static bool gen_discrete_filter(s32 **_bounds, double **_coeffs, size_t *_suppor
     const double inv_filter_scale = q_fmax(factor, 1.0);
     const double filter_scale = 1.0 / inv_filter_scale;
     window *= inv_filter_scale;
-    size_t support_val = (size_t)ceil(2.0 * window);
+    const size_t support = (size_t)ceil(2.0 * window);
 
     s32 *bounds = malloc(2 * (size_t)dst * sizeof(s32));
     if (!bounds)
         return true;
 
-    double *coeffs = malloc(support_val * (size_t)dst * sizeof(double));
+    double *coeffs = malloc(support * (size_t)dst * sizeof(double));
     if (!coeffs) {
         free(bounds);
         return true;
@@ -243,9 +243,9 @@ static bool gen_discrete_filter(s32 **_bounds, double **_coeffs, size_t *_suppor
 
     *_bounds = bounds;
     *_coeffs = coeffs;
-    *_support = support_val;
+    *_support = support;
 
-    for (s32 z = 0; z < dst; z++, bounds += 2, coeffs += support_val) {
+    for (s32 z = 0; z < dst; z++, bounds += 2, coeffs += support) {
         const double mapped_x = factor * (z + 0.5) - 0.5;
         const s32 min_z = max((s32)floor(mapped_x - window + 1.0), 0);
         const s32 max_z = min((s32)ceil(mapped_x + window - 1.0), max_s);
@@ -312,7 +312,7 @@ double *reconstruct(const double *src, s32 src_width, s32 src_height, s32 dst_wi
     const size_t h_intermediate = dst_width * src_height;
     const size_t v_intermediate = dst_height * src_width;
 
-    if (h_intermediate >= v_intermediate) {
+    if (h_intermediate > v_intermediate) {
         double *temp = v_reconstruct(src, src_width, src_height, dst_height, filter, window, norm);
         if (!temp)
             return NULL;
@@ -523,7 +523,7 @@ double *reconstruct_iconvolve(const double *src, s32 src_width, s32 src_height, 
     const size_t h_intermediate = dst_width * src_height;
     const size_t v_intermediate = dst_height * src_width;
 
-    if (h_intermediate >= v_intermediate) {
+    if (h_intermediate > v_intermediate) {
         double *temp = v_reconstruct_iconvolve(src, src_width, src_height, dst_height, filter, window, norm, L, m, c);
         if (!temp)
             return NULL;

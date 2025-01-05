@@ -39,134 +39,107 @@ export function sample(src, src_width, src_height, dst_width, dst_height) {
     return dst;
 }
 
-function hscale(src, src_width, height, dst_width) {
-    const max_high_x = src_width - 1;
+function h_filter(src, src_width, height, dst_width, bounds, coeffs, support) {
     const adj_src_width = src_width << 2;
-    const adj_dst_width = dst_width << 2;
-    const adj_src_area = adj_src_width * height;
-    const factor = src_width / dst_width;
-    const inv_factor = dst_width / src_width;
+    const dst = new Float64Array((dst_width * height) << 2);
 
-    const dst = new Float64Array(height * adj_dst_width);
+    let bounds_ptr;
+    let coeffs_ptr;
+    let src_offset = 0;
+    let dst_pixel = 0;
+    for (let y = 0; y < height; y++, src_offset += adj_src_width) {
+        coeffs_ptr = 0;
+        bounds_ptr = 0;
 
-    let dst_offset = 0;
-    for (let x = 0; x < dst_width; x++, dst_offset += 4) {
-        const min_mapped_x = factor * x;
-        const max_mapped_x = min_mapped_x + factor;
-        let min_x = Math.ceil(min_mapped_x);
-        let max_x = Math.floor(max_mapped_x);
+        for (let x = 0; x < dst_width; x++, bounds_ptr += 2, coeffs_ptr += support, dst_pixel += 4) {
+            const min_x = bounds[bounds_ptr + 0];
+            const max_x = bounds[bounds_ptr + 1];
 
-        let dst_pixel = dst_offset;
+            let src_pixel = src_offset + (min_x << 2);
+            for (let s = min_x, i = 0; s <= max_x; s++, i++, src_pixel += 4) {
+                const weight = coeffs[coeffs_ptr + i];
 
-        if (max_x < min_x) {
-            for (let src_pixel = max_x << 2; src_pixel < adj_src_area; src_pixel += adj_src_width, dst_pixel += adj_dst_width) {
-                dst[dst_pixel + 0] = src[src_pixel + 0];
-                dst[dst_pixel + 1] = src[src_pixel + 1];
-                dst[dst_pixel + 2] = src[src_pixel + 2];
-                dst[dst_pixel + 3] = src[src_pixel + 3];
+                dst[dst_pixel + 0] += src[src_pixel + 0] * weight;
+                dst[dst_pixel + 1] += src[src_pixel + 1] * weight;
+                dst[dst_pixel + 2] += src[src_pixel + 2] * weight;
+                dst[dst_pixel + 3] += src[src_pixel + 3] * weight;
             }
-            continue;
-        }
-
-        const low_x = Math.max(min_x - 1, 0) << 2;
-        const high_x = Math.min(max_x, max_high_x) << 2;
-        const low_mult = min_x - min_mapped_x;
-        const high_mult = max_mapped_x - max_x;
-        min_x <<= 2;
-        max_x <<= 2;
-
-        for (let y = 0; y < adj_src_area; y += adj_src_width, dst_pixel += adj_dst_width) {
-            let src_pixel = y + low_x;
-            dst[dst_pixel + 0] += src[src_pixel + 0] * low_mult;
-            dst[dst_pixel + 1] += src[src_pixel + 1] * low_mult;
-            dst[dst_pixel + 2] += src[src_pixel + 2] * low_mult;
-            dst[dst_pixel + 3] += src[src_pixel + 3] * low_mult;
-
-            const src_max = y + max_x;
-            for (src_pixel = y + min_x; src_pixel < src_max; src_pixel += 4) {
-                dst[dst_pixel + 0] += src[src_pixel + 0];
-                dst[dst_pixel + 1] += src[src_pixel + 1];
-                dst[dst_pixel + 2] += src[src_pixel + 2];
-                dst[dst_pixel + 3] += src[src_pixel + 3];
-            }
-
-            src_pixel = y + high_x;
-            dst[dst_pixel + 0] += src[src_pixel + 0] * high_mult;
-            dst[dst_pixel + 1] += src[src_pixel + 1] * high_mult;
-            dst[dst_pixel + 2] += src[src_pixel + 2] * high_mult;
-            dst[dst_pixel + 3] += src[src_pixel + 3] * high_mult;
-            dst[dst_pixel + 0] *= inv_factor;
-            dst[dst_pixel + 1] *= inv_factor;
-            dst[dst_pixel + 2] *= inv_factor;
-            dst[dst_pixel + 3] *= inv_factor;
         }
     }
 
     return dst;
 }
 
-function vscale(src, width, src_height, dst_height) {
-    const max_high_y = src_height - 1;
+function v_filter(src, width, dst_height, bounds, coeffs, support) {
     const adj_width = width << 2;
-    const factor = src_height / dst_height;
-    const inv_factor = dst_height / src_height;
-
     const dst = new Float64Array(adj_width * dst_height);
 
-    let dst_pixel = 0;
-    for (let y = 0; y < dst_height; y++) {
-        const min_mapped_y = factor * y;
-        const max_mapped_y = min_mapped_y + factor;
-        let min_y = Math.ceil(min_mapped_y);
-        let max_y = Math.floor(max_mapped_y);
+    let bounds_ptr = 0;
+    let coeffs_ptr = 0;
+    let dst_offset = 0;
+    for (let y = 0; y < dst_height; y++, bounds_ptr += 2, coeffs_ptr += support, dst_offset += adj_width) {
+        const min_y = bounds[bounds_ptr + 0];
+        const max_y = bounds[bounds_ptr + 1];
 
-        if (max_y < min_y) {
-            const src_offset = adj_width * max_y;
-            const src_max = src_offset + adj_width;
-            for (let src_pixel = src_offset; src_pixel < src_max; src_pixel += 4, dst_pixel += 4) {
-                dst[dst_pixel + 0] = src[src_pixel + 0];
-                dst[dst_pixel + 1] = src[src_pixel + 1];
-                dst[dst_pixel + 2] = src[src_pixel + 2];
-                dst[dst_pixel + 3] = src[src_pixel + 3];
+        let src_pixel = adj_width * min_y;
+        for (let s = min_y, i = 0; s <= max_y; s++, i++) {
+            const weight = coeffs[coeffs_ptr + i];
+
+            let dst_pixel = dst_offset;
+            for (let x = 0; x < width; x++, src_pixel += 4, dst_pixel += 4) {
+                dst[dst_pixel + 0] += src[src_pixel + 0] * weight;
+                dst[dst_pixel + 1] += src[src_pixel + 1] * weight;
+                dst[dst_pixel + 2] += src[src_pixel + 2] * weight;
+                dst[dst_pixel + 3] += src[src_pixel + 3] * weight;
             }
-            continue;
-        }
-
-        const low_y = adj_width * Math.max(min_y - 1, 0);
-        const high_y = adj_width * Math.min(max_y, max_high_y);
-        const low_mult = min_y - min_mapped_y;
-        const high_mult = max_mapped_y - max_y;
-        min_y *= adj_width;
-        max_y *= adj_width;
-
-        for (let x = 0; x < adj_width; x += 4, dst_pixel += 4) {
-            let src_pixel = x + low_y;
-            dst[dst_pixel + 0] += src[src_pixel + 0] * low_mult;
-            dst[dst_pixel + 1] += src[src_pixel + 1] * low_mult;
-            dst[dst_pixel + 2] += src[src_pixel + 2] * low_mult;
-            dst[dst_pixel + 3] += src[src_pixel + 3] * low_mult;
-
-            const src_max = x + max_y;
-            for (src_pixel = x + min_y; src_pixel < src_max; src_pixel += adj_width) {
-                dst[dst_pixel + 0] += src[src_pixel + 0];
-                dst[dst_pixel + 1] += src[src_pixel + 1];
-                dst[dst_pixel + 2] += src[src_pixel + 2];
-                dst[dst_pixel + 3] += src[src_pixel + 3];
-            }
-
-            src_pixel = x + high_y;
-            dst[dst_pixel + 0] += src[src_pixel + 0] * high_mult;
-            dst[dst_pixel + 1] += src[src_pixel + 1] * high_mult;
-            dst[dst_pixel + 2] += src[src_pixel + 2] * high_mult;
-            dst[dst_pixel + 3] += src[src_pixel + 3] * high_mult;
-            dst[dst_pixel + 0] *= inv_factor;
-            dst[dst_pixel + 1] *= inv_factor;
-            dst[dst_pixel + 2] *= inv_factor;
-            dst[dst_pixel + 3] *= inv_factor;
         }
     }
 
     return dst;
+}
+
+function gen_area_filter(src, dst) {
+    const factor = src / dst;
+    const inv_factor = dst / src;
+    const support = Math.ceil(factor) + 1;
+
+    const bounds = new Int32Array(2 * dst);
+    const coeffs = new Float64Array(support * dst);
+
+    let bounds_ptr = 0;
+    let coeffs_ptr = 0;
+    for (let z = 0; z < dst; z++, bounds_ptr += 2, coeffs_ptr += support) {
+        const min_mapped_z = factor * z;
+        const max_mapped_z = min_mapped_z + factor;
+        const min_z = Math.floor(min_mapped_z + 1.0);
+        const max_z = Math.ceil(max_mapped_z - 1.0);
+
+        if (max_z < min_z) {
+            bounds[bounds_ptr + 1] = bounds[bounds_ptr + 0] = max_z;
+            coeffs[coeffs_ptr + 0] = 1.0;
+            continue;
+        }
+
+        bounds[bounds_ptr + 0] = min_z - 1;
+        bounds[bounds_ptr + 1] = max_z;
+        coeffs[coeffs_ptr + 0] = inv_factor * (min_z - min_mapped_z);
+        let i = 1;
+        for (let s = min_z; s < max_z; s++, i++)
+            coeffs[coeffs_ptr + i] = inv_factor;
+        coeffs[coeffs_ptr + i] = inv_factor * (max_mapped_z - max_z);
+    }
+
+    return { bounds, coeffs, support };
+}
+
+function h_scale(src, src_width, height, dst_width) {
+    const { bounds, coeffs, support } = gen_area_filter(src_width, dst_width);
+    return h_filter(src, src_width, height, dst_width, bounds, coeffs, support);
+}
+
+function v_scale(src, width, src_height, dst_height) {
+    const { bounds, coeffs, support } = gen_area_filter(src_height, dst_height);
+    return v_filter(src, width, dst_height, bounds, coeffs, support);
 }
 
 /**
@@ -185,110 +158,66 @@ export function scale(src, src_width, src_height, dst_width, dst_height) {
     if (dst_width === src_width) {
         if (dst_height === src_height)
             return new Float64Array(src);
-        return vscale(src, src_width, src_height, dst_height);
+        return v_scale(src, src_width, src_height, dst_height);
     } else if (dst_height === src_height) {
-        return hscale(src, src_width, src_height, dst_width);
+        return h_scale(src, src_width, src_height, dst_width);
     }
 
-    const x_factor = dst_width / src_width;
-    const y_factor = dst_height / src_height;
+    const h_intermediate = dst_width * src_height;
+    const v_intermediate = dst_height * src_width;
 
-    if (x_factor >= y_factor) {
-        const temp = vscale(src, src_width, src_height, dst_height);
-        return hscale(temp, src_width, dst_height, dst_width);
+    if (h_intermediate > v_intermediate) {
+        const temp = v_scale(src, src_width, src_height, dst_height);
+        return h_scale(temp, src_width, dst_height, dst_width);
     } else {
-        const temp = hscale(src, src_width, src_height, dst_width);
-        return vscale(temp, dst_width, src_height, dst_height);
+        const temp = h_scale(src, src_width, src_height, dst_width);
+        return v_scale(temp, dst_width, src_height, dst_height);
     }
 }
 
-function hreconstruct(src, src_width, height, dst_width, filter, window, norm) {
-    const max_s = src_width - 1;
-    const adj_src_width = src_width << 2;
-    const adj_dst_width = dst_width << 2;
-    const adj_dst_area = adj_dst_width * height;
-    const factor = src_width / dst_width;
-
-    const dst = new Float64Array(adj_dst_width * height);
-
+function gen_discrete_filter(src, dst, filter, window, norm) {
+    const max_s = src - 1;
+    const factor = src / dst;
     const inv_filter_scale = Math.max(factor, 1.0);
     const filter_scale = 1.0 / inv_filter_scale;
     window *= inv_filter_scale;
+    const support = Math.ceil(2.0 * window);
 
-    let dst_offset = 0;
-    for (let x = 0; x < dst_width; x++, dst_offset += 4) {
-        const mapped_x = factor * (x + 0.5) - 0.5;
-        const min_x = Math.max(Math.ceil(mapped_x - window), 0);
-        const max_x = Math.min(Math.floor(mapped_x + window), max_s);
-        let weight_total = 0;
+    const bounds = new Int32Array(2 * dst);
+    const coeffs = new Float64Array(support * dst);
 
-        let src_offset = min_x << 2;
-        for (let s = min_x; s <= max_x; s++, src_offset += 4) {
+    let bounds_ptr = 0;
+    let coeffs_ptr = 0;
+    for (let z = 0; z < dst; z++, bounds_ptr += 2, coeffs_ptr += support) {
+        const mapped_x = factor * (z + 0.5) - 0.5;
+        const min_z = Math.max(Math.floor(mapped_x - window + 1.0), 0);
+        const max_z = Math.min(Math.ceil(mapped_x + window - 1.0), max_s);
+        bounds[bounds_ptr + 0] = min_z;
+        bounds[bounds_ptr + 1] = max_z;
+
+        let weight_total = 0.0;
+        for (let s = min_z, i = 0; s <= max_z; s++, i++) {
             const weight = filter(Math.abs(mapped_x - s) * filter_scale);
+            coeffs[coeffs_ptr + i] = weight;
             weight_total += weight;
-
-            for (let src_pixel = src_offset, dst_pixel = dst_offset; dst_pixel < adj_dst_area; src_pixel += adj_src_width, dst_pixel += adj_dst_width) {
-                dst[dst_pixel + 0] += src[src_pixel + 0] * weight;
-                dst[dst_pixel + 1] += src[src_pixel + 1] * weight;
-                dst[dst_pixel + 2] += src[src_pixel + 2] * weight;
-                dst[dst_pixel + 3] += src[src_pixel + 3] * weight;
-            }
         }
 
         weight_total = norm / weight_total;
-        for (let dst_pixel = dst_offset; dst_pixel < adj_dst_area; dst_pixel += adj_dst_width) {
-            dst[dst_pixel + 0] *= weight_total;
-            dst[dst_pixel + 1] *= weight_total;
-            dst[dst_pixel + 2] *= weight_total;
-            dst[dst_pixel + 3] *= weight_total;
-        }
+        for (let s = min_z, i = 0; s <= max_z; s++, i++)
+            coeffs[coeffs_ptr + i] *= weight_total;
     }
 
-    return dst;
+    return { bounds, coeffs, support };
 }
 
-function vreconstruct(src, width, src_height, dst_height, filter, window, norm) {
-    const max_s = src_height - 1;
-    const adj_width = width << 2;
-    const factor = src_height / dst_height;
+function h_reconstruct(src, src_width, height, dst_width, filter, window, norm) {
+    const { bounds, coeffs, support } = gen_discrete_filter(src_width, dst_width, filter, window, norm)
+    return h_filter(src, src_width, height, dst_width, bounds, coeffs, support);
+}
 
-    const dst = new Float64Array(adj_width * dst_height);
-
-    const inv_filter_scale = Math.max(factor, 1.0);
-    const filter_scale = 1.0 / inv_filter_scale;
-    window *= inv_filter_scale;
-
-    let dst_offset = 0;
-    let ndst_offset = adj_width;
-    for (let y = 0; y < dst_height; y++, dst_offset = ndst_offset, ndst_offset += adj_width) {
-        const mapped_y = factor * (y + 0.5) - 0.5;
-        const min_y = Math.max(Math.ceil(mapped_y - window), 0);
-        const max_y = Math.min(Math.floor(mapped_y + window), max_s);
-        let weight_total = 0;
-
-        let src_offset = adj_width * min_y;
-        for (let s = min_y; s <= max_y; s++, src_offset += adj_width) {
-            const weight = filter(Math.abs(mapped_y - s) * filter_scale);
-            weight_total += weight;
-
-            for (let src_pixel = src_offset, dst_pixel = dst_offset; dst_pixel < ndst_offset; src_pixel += 4, dst_pixel += 4) {
-                dst[dst_pixel + 0] += src[src_pixel + 0] * weight;
-                dst[dst_pixel + 1] += src[src_pixel + 1] * weight;
-                dst[dst_pixel + 2] += src[src_pixel + 2] * weight;
-                dst[dst_pixel + 3] += src[src_pixel + 3] * weight;
-            }
-        }
-
-        weight_total = norm / weight_total;
-        for (let dst_pixel = dst_offset; dst_pixel < ndst_offset; dst_pixel += 4) {
-            dst[dst_pixel + 0] *= weight_total;
-            dst[dst_pixel + 1] *= weight_total;
-            dst[dst_pixel + 2] *= weight_total;
-            dst[dst_pixel + 3] *= weight_total;
-        }
-    }
-
-    return dst;
+function v_reconstruct(src, width, src_height, dst_height, filter, window, norm) {
+    const { bounds, coeffs, support } = gen_discrete_filter(src_height, dst_height, filter, window, norm)
+    return v_filter(src, width, dst_height, bounds, coeffs, support);
 }
 
 /**
@@ -312,25 +241,25 @@ export function reconstruct(src, src_width, src_height, dst_width, dst_height, f
         if (dst_width === src_width) {
             if (dst_height === src_height)
                 return new Float64Array(src);
-            return vreconstruct(src, src_width, src_height, dst_height, filter, window, norm);
+            return v_reconstruct(src, src_width, src_height, dst_height, filter, window, norm);
         } else if (dst_height === src_height) {
-            return hreconstruct(src, src_width, src_height, dst_width, filter, window, norm);
+            return h_reconstruct(src, src_width, src_height, dst_width, filter, window, norm);
         }
     }
 
-    const x_factor = dst_width / src_width;
-    const y_factor = dst_height / src_height;
+    const h_intermediate = dst_width * src_height;
+    const v_intermediate = dst_height * src_width;
 
-    if (x_factor >= y_factor) {
-        const temp = vreconstruct(src, src_width, src_height, dst_height, filter, window, norm);
-        return hreconstruct(temp, src_width, dst_height, dst_width, filter, window, norm);
+    if (h_intermediate > v_intermediate) {
+        const temp = v_reconstruct(src, src_width, src_height, dst_height, filter, window, norm);
+        return h_reconstruct(temp, src_width, dst_height, dst_width, filter, window, norm);
     } else {
-        const temp = hreconstruct(src, src_width, src_height, dst_width, filter, window, norm);
-        return vreconstruct(temp, dst_width, src_height, dst_height, filter, window, norm);
+        const temp = h_reconstruct(src, src_width, src_height, dst_width, filter, window, norm);
+        return v_reconstruct(temp, dst_width, src_height, dst_height, filter, window, norm);
     }
 }
 
-function hiconvolve(img, width, height, L, m, c) {
+function h_iconvolve(img, width, height, L, m, c) {
     let n = m - 1;
     if (m >= width)
         n = m = width - 1;
@@ -390,7 +319,7 @@ function hiconvolve(img, width, height, L, m, c) {
     }
 }
 
-function viconvolve(img, width, height, L, m, c) {
+function v_iconvolve(img, width, height, L, m, c) {
     let n = m - 1;
     if (m >= height)
         n = m = height - 1;
@@ -453,38 +382,38 @@ function viconvolve(img, width, height, L, m, c) {
     }
 }
 
-function hreconstruct_iconvolve(src, src_width, height, dst_width, filter, window, norm, L, m, c) {
+function h_reconstruct_iconvolve(src, src_width, height, dst_width, filter, window, norm, L, m, c) {
     if (dst_width > src_width) {
         if (src_width === 1)
-            return hreconstruct(src, src_width, height, dst_width, filter, window, 1.0);
+            return h_reconstruct(src, src_width, height, dst_width, filter, window, 1.0);
 
         const temp = new Float64Array(src);
-        hiconvolve(temp, src_width, height, L, m, c);
-        return hreconstruct(temp, src_width, height, dst_width, filter, window, norm);
+        h_iconvolve(temp, src_width, height, L, m, c);
+        return h_reconstruct(temp, src_width, height, dst_width, filter, window, norm);
     } else {
         if (dst_width === 1)
-            return hreconstruct(src, src_width, height, dst_width, filter, window, 1.0);
+            return h_reconstruct(src, src_width, height, dst_width, filter, window, 1.0);
 
-        const ret = hreconstruct(src, src_width, height, dst_width, filter, window, norm);
-        hiconvolve(ret, dst_width, height, L, m, c);
+        const ret = h_reconstruct(src, src_width, height, dst_width, filter, window, norm);
+        h_iconvolve(ret, dst_width, height, L, m, c);
         return ret;
     }
 }
 
-function vreconstruct_iconvolve(src, width, src_height, dst_height, filter, window, norm, L, m, c) {
+function v_reconstruct_iconvolve(src, width, src_height, dst_height, filter, window, norm, L, m, c) {
     if (dst_height > src_height) {
         if (src_height === 1)
-            return vreconstruct(src, width, src_height, dst_height, filter, window, 1.0);
+            return v_reconstruct(src, width, src_height, dst_height, filter, window, 1.0);
 
         const temp = new Float64Array(src);
-        viconvolve(temp, width, src_height, L, m, c);
-        return vreconstruct(temp, width, src_height, dst_height, filter, window, norm);
+        v_iconvolve(temp, width, src_height, L, m, c);
+        return v_reconstruct(temp, width, src_height, dst_height, filter, window, norm);
     } else {
         if (dst_height === 1)
-            return vreconstruct(src, width, src_height, dst_height, filter, window, 1.0);
+            return v_reconstruct(src, width, src_height, dst_height, filter, window, 1.0);
 
-        const ret = vreconstruct(src, width, src_height, dst_height, filter, window, norm);
-        viconvolve(ret, width, dst_height, L, m, c);
+        const ret = v_reconstruct(src, width, src_height, dst_height, filter, window, norm);
+        v_iconvolve(ret, width, dst_height, L, m, c);
         return ret;
     }
 }
@@ -499,7 +428,7 @@ function vreconstruct_iconvolve(src, width, src_height, dst_height, filter, wind
  * @param {(x: number) => number} filter Reconstruction filter function.
  * @param {number} window Filter function window.
  * @param {number} norm Normalization constant.
- * @param {number[]} L Lower matrix coefficients.
+ * @param {Float64Array} L Lower matrix coefficients.
  * @param {number} m Number of lower matrix coefficients.
  * @param {number} c Edge multiplier constant.
  * @param {boolean} nop Boolean flag for a no-op case.
@@ -513,21 +442,21 @@ export function reconstruct_iconvolve(src, src_width, src_height, dst_width, dst
         if (dst_width === src_width) {
             if (dst_height === src_height)
                 return new Float64Array(src);
-            return vreconstruct_iconvolve(src, src_width, src_height, dst_height, filter, window, norm, L, m, c);
+            return v_reconstruct_iconvolve(src, src_width, src_height, dst_height, filter, window, norm, L, m, c);
         } else if (dst_height === src_height) {
-            return hreconstruct_iconvolve(src, src_width, src_height, dst_width, filter, window, norm, L, m, c);
+            return h_reconstruct_iconvolve(src, src_width, src_height, dst_width, filter, window, norm, L, m, c);
         }
     }
 
-    const x_factor = dst_width / src_width;
-    const y_factor = dst_height / src_height;
+    const h_intermediate = dst_width * src_height;
+    const v_intermediate = dst_height * src_width;
 
-    if (x_factor >= y_factor) {
-        const temp = vreconstruct_iconvolve(src, src_width, src_height, dst_height, filter, window, norm, L, m, c);
-        return hreconstruct_iconvolve(temp, src_width, dst_height, dst_width, filter, window, norm, L, m, c);
+    if (h_intermediate > v_intermediate) {
+        const temp = v_reconstruct_iconvolve(src, src_width, src_height, dst_height, filter, window, norm, L, m, c);
+        return h_reconstruct_iconvolve(temp, src_width, dst_height, dst_width, filter, window, norm, L, m, c);
     } else {
-        const temp = hreconstruct_iconvolve(src, src_width, src_height, dst_width, filter, window, norm, L, m, c);
-        return vreconstruct_iconvolve(temp, dst_width, src_height, dst_height, filter, window, norm, L, m, c);
+        const temp = h_reconstruct_iconvolve(src, src_width, src_height, dst_width, filter, window, norm, L, m, c);
+        return v_reconstruct_iconvolve(temp, dst_width, src_height, dst_height, filter, window, norm, L, m, c);
     }
 }
 

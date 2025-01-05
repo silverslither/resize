@@ -50,7 +50,6 @@ async function main(file) {
     const sigParams = parseSigmoidizationBeta(beta.value);
     const linearize = linearizeBox.checked;
 
-    console.log(src.data);
     preprocess(src.data, linearize, sigParams);
     mul_alpha(src.data);
 
