@@ -26,7 +26,7 @@ async function listener() {
             err.innerText += "error: no file selected";
             return;
         }
-        main(file);
+        await main(file);
     } catch (e) {
         err.innerText += e;
     }

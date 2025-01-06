@@ -39,7 +39,7 @@ extern "C" {
 #define WUFFS_CONFIG__DST_PIXEL_FORMAT__ENABLE_ALLOWLIST
 #define WUFFS_CONFIG__DST_PIXEL_FORMAT__ALLOW_RGBA_NONPREMUL
 
-#include "include/fpng.cpp"
+#include "include/fpng.h"
 #include "include/wuffs-v0.4.c"
 
 class RGBA_NonPremul_DecodeImageCallbacks : public wuffs_aux::DecodeImageCallbacks {

@@ -12,11 +12,12 @@ cd ..
 set -e
 
 CFLAGS="-std=c99 -c -O3 -march=native -fno-strict-aliasing -Wall -Wextra -Wpedantic -Wshadow -Wfloat-conversion"
-CXXFLAGS="-std=c++11 -c -O3 -march=native -fno-strict-aliasing -Wall -Wextra -Wpedantic -Wshadow -Wfloat-conversion -Wno-type-limits -Wno-tautological-constant-out-of-range-compare"
+CXXFLAGS="-std=c++11 -c -O3 -march=native -fno-strict-aliasing -Wall -Wextra -Wpedantic -Wshadow -Wfloat-conversion"
 
 $CC $CFLAGS filters.c
 $CC $CFLAGS resize.c
 $CC $CFLAGS colour.c
+$CXX $CXXFLAGS -Wno-type-limits -Wno-tautological-constant-out-of-range-compare -Wno-unused-function include/fpng.cpp
 $CXX $CXXFLAGS example.cpp
 
 $CXX -lm -o resize *.o
