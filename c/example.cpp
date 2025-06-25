@@ -364,7 +364,7 @@ no_options:
     double *output_f64;
     if (haloMinimize) {
         if (sobelMultiplier == -1.0) {
-            sobelMultiplier = 2.0 * (double)(dst_width * dst_height) / (double)(src_width * src_height);
+            sobelMultiplier = 2.0 * sqrt((double)(dst_width * dst_height) / (double)(src_width * src_height));
             sobelMultiplier = sobelMultiplier < 2.0 ? 2.0 : sobelMultiplier;
         }
         output_f64 = haloMinimizedResize(input_f64, src_width, src_height, dst_width, dst_height, filter, smoothFilter, sobelFilter, sobelMultiplier);
