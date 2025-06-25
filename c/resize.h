@@ -36,6 +36,19 @@ typedef enum Filter {
 double *sample(const double *src, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height);
 
 /**
+ * \brief Convolve an image with a horizontal and vertical kernel.
+ * \param src Source image in a 4-channel format.
+ * \param width Image width.
+ * \param height Image height.
+ * \param h_kernel Horizontal kernel, or null pointer if no horizontal convolution is desired.
+ * \param v_kernel Vertical kernel, or null pointer if no vertical convolution is desired.
+ * \param h_support Support window for the horizontal kernel. Should usually be an odd number.
+ * \param v_support Support window for the vertical kernel. Should usually be an odd number.
+ * \return Destination image in a 4-channel format, or null pointer if OOM.
+ */
+double *convolve(const double *src, s32 width, s32 height, const double *h_kernel, const double *v_kernel, s32 h_support, s32 v_support);
+
+/**
  * \brief Resize an image using area averaging / pixel mixing.
  * \param src Source image in a 4-channel format.
  * \param src_width Source image width.
