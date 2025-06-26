@@ -178,15 +178,15 @@ double parseSobelMultiplier(char *str) {
     return mult;
 }
 
-double *sobelOperator(const double *src, s32 width, s32 height, bool alpha = true) {
-    static double Sobel_K1[3] = { 1, 0, -1 };
-    static double Sobel_K2[3] = { 1, 2, 1 };
+double *sobelOperator(const double *src, s32 width, s32 height, double multiplier, bool alpha = true) {
+    static double Sobel_K1[3] = { 0.5, 0, -0.5 };
+    static double Sobel_K2[3] = { 0.25, 0.5, 0.25 };
 
-    double *Gx = convolve(src, width, height, Sobel_K1, Sobel_K1, 3, 3);
+    double *Gx = convolve(src, width, height, Sobel_K1, Sobel_K2, 3, 3, 0.0, multiplier);
     if (!Gx)
         return nullptr;
 
-    double *Gy = convolve(src, width, height, Sobel_K2, Sobel_K1, 3, 3);
+    double *Gy = convolve(src, width, height, Sobel_K2, Sobel_K1, 3, 3, multiplier, 0.0);
     if (!Gy) {
         free(Gx);
         return nullptr;
@@ -195,7 +195,7 @@ double *sobelOperator(const double *src, s32 width, s32 height, bool alpha = tru
     s32 length = width * height << 2;
     if (alpha) {
         for (s32 i = 0; i < length; i++)
-            Gx[i] = 0.125 * sqrt(Gx[i] * Gx[i] + Gy[i] * Gy[i]);
+            Gx[i] = sqrt(Gx[i] * Gx[i] + Gy[i] * Gy[i]);
     } else {
         s32 j = 0;
         for (s32 i = 0; i < length; i++) {
@@ -204,7 +204,7 @@ double *sobelOperator(const double *src, s32 width, s32 height, bool alpha = tru
                 j = 0;
                 continue;
             }
-            Gx[i] = 0.125 * sqrt(Gx[i] * Gx[i] + Gy[i] * Gy[i]);
+            Gx[i] = sqrt(Gx[i] * Gx[i] + Gy[i] * Gy[i]);
             j++;
         }
     }
@@ -214,9 +214,6 @@ double *sobelOperator(const double *src, s32 width, s32 height, bool alpha = tru
 }
 
 double *haloMinimizedResize(const double *src, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height, Filter sharpFilter, Filter smoothFilter, Filter sobelFilter, double multiplier) {
-    if (sobelFilter == DEFAULT)
-        sobelFilter = smoothFilter;
-
     double *sharp = resize(src, src_width, src_height, dst_width, dst_height, sharpFilter);
     if (!sharp)
         return nullptr;
@@ -228,9 +225,9 @@ double *haloMinimizedResize(const double *src, s32 src_width, s32 src_height, s3
 
     double *sobel;
     if (sobelFilter == sharpFilter) {
-        sobel = sobelOperator(sharp, dst_width, dst_height);
+        sobel = sobelOperator(sharp, dst_width, dst_height, multiplier);
     } else if (sobelFilter == smoothFilter) {
-        sobel = sobelOperator(smooth, dst_width, dst_height);
+        sobel = sobelOperator(smooth, dst_width, dst_height, multiplier);
     } else {
         double *temp = resize(src, src_width, src_height, dst_width, dst_height, sobelFilter);
         if (!temp) {
@@ -238,7 +235,7 @@ double *haloMinimizedResize(const double *src, s32 src_width, s32 src_height, s3
             free(smooth);
             return nullptr;
         }
-        sobel = sobelOperator(temp, dst_width, dst_height);
+        sobel = sobelOperator(temp, dst_width, dst_height, multiplier);
         free(temp);
     }
     if (!sobel) {
@@ -259,11 +256,12 @@ double *haloMinimizedResize(const double *src, s32 src_width, s32 src_height, s3
 }
 
 int main(int argc, char **argv) {
-    assert(argc >= 5, "usage: resize <input> <width> <height> <output> [-f filter] [-h smooth_filter] [-e sobel_filter] [-m sobel_multiplier] [-l] [-s sigmoidization_contrast]\n");
+    assert(argc >= 5, "usage: resize <input> <width> <height> <output> [-f filter] [-h smooth_filter] [-e sobel_filter] [-m sobel_multiplier] [-r] [-l] [-s sigmoidization_contrast]\n");
 
     // default options
     Filter filter = DEFAULT;
     bool haloMinimize = false;
+    bool sobelRaw = false;
     double sobelMultiplier = -1.0;
     Filter smoothFilter = DEFAULT;
     Filter sobelFilter = DEFAULT;
@@ -313,6 +311,9 @@ int main(int argc, char **argv) {
             }
             sobelMultiplier = parseSobelMultiplier(argv[i]);
             break;
+        case 'r':
+            sobelRaw = true;
+            break;
         case 'l':
             linearize = true;
             break;
@@ -361,12 +362,22 @@ no_options:
     double *input_f64 = u8_to_f64(input_u8, area, linearize, sigParamsPtr);
     mul_alpha(input_f64, area);
 
+    if (sobelMultiplier == -1.0) {
+        sobelMultiplier = 2.0 * sqrt((double)(dst_width * dst_height) / (double)(src_width * src_height));
+        sobelMultiplier = sobelMultiplier < 2.0 ? 2.0 : sobelMultiplier;
+    }
+    if (smoothFilter == DEFAULT)
+        smoothFilter = filter;
+    if (sobelFilter == DEFAULT)
+        sobelFilter = smoothFilter;
+
     double *output_f64;
-    if (haloMinimize) {
-        if (sobelMultiplier == -1.0) {
-            sobelMultiplier = 2.0 * sqrt((double)(dst_width * dst_height) / (double)(src_width * src_height));
-            sobelMultiplier = sobelMultiplier < 2.0 ? 2.0 : sobelMultiplier;
-        }
+    if (sobelRaw) {
+        double *temp = resize(input_f64, src_width, src_height, dst_width, dst_height, sobelFilter);
+        assert(temp, "error: out of memory");
+        output_f64 = sobelOperator(temp, dst_width, dst_height, sobelMultiplier, false);
+        free(temp);
+    } else if (haloMinimize) {
         output_f64 = haloMinimizedResize(input_f64, src_width, src_height, dst_width, dst_height, filter, smoothFilter, sobelFilter, sobelMultiplier);
     } else {
         output_f64 = resize(input_f64, src_width, src_height, dst_width, dst_height, filter);

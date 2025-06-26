@@ -56,89 +56,6 @@ double *sample(const double *src, s32 src_width, s32 src_height, s32 dst_width, 
     return dst;
 }
 
-static double *h_convolve(const double *src, s32 width, s32 height, const double *kernel, s32 support) {
-    const s32 adj_width = width << 2;
-    const s32 offset = support >> 1;
-    double *dst = calloc(((size_t)width * (size_t)height) << 2, sizeof(*dst));
-    if (!dst)
-        return NULL;
-
-    s32 src_offset = 0;
-    s32 dst_pixel = 0;
-    for (s32 y = 0; y < height; y++, src_offset += adj_width) {
-        for (s32 x = 0; x < width; x++, dst_pixel += 4) {
-            const s32 min_x = x - offset;
-            const s32 max_x = min(x + offset, width - 1);
-
-            s32 src_pixel = src_offset + (min_x << 2);
-            for (s32 s = min_x, i = 0; s <= max_x; s++, i++, src_pixel += 4) {
-                if (s < 0)
-                    continue;
-                const double weight = kernel[i];
-
-                dst[dst_pixel + 0] += src[src_pixel + 0] * weight;
-                dst[dst_pixel + 1] += src[src_pixel + 1] * weight;
-                dst[dst_pixel + 2] += src[src_pixel + 2] * weight;
-                dst[dst_pixel + 3] += src[src_pixel + 3] * weight;
-            }
-        }
-    }
-
-    return dst;
-}
-
-static double *v_convolve(const double *src, s32 width, s32 height, const double *kernel, s32 support) {
-    const s32 adj_width = width << 2;
-    const s32 offset = support >> 1;
-    double *dst = calloc((size_t)adj_width * (size_t)height, sizeof(*dst));
-    if (!dst)
-        return NULL;
-
-    s32 dst_offset = 0;
-    for (s32 y = 0; y < height; y++, dst_offset += adj_width) {
-        const s32 min_y = y - offset;
-        const s32 max_y = min(y + offset, height - 1);
-
-        s32 src_pixel = adj_width * min_y;
-        for (s32 s = min_y, i = 0; s <= max_y; s++, i++) {
-            if (s < 0)
-                continue;
-            const double weight = kernel[i];
-
-            s32 dst_pixel = dst_offset;
-            for (s32 x = 0; x < width; x++, src_pixel += 4, dst_pixel += 4) {
-                dst[dst_pixel + 0] += src[src_pixel + 0] * weight;
-                dst[dst_pixel + 1] += src[src_pixel + 1] * weight;
-                dst[dst_pixel + 2] += src[src_pixel + 2] * weight;
-                dst[dst_pixel + 3] += src[src_pixel + 3] * weight;
-            }
-        }
-    }
-
-    return dst;
-}
-
-double *convolve(const double *src, s32 width, s32 height, const double *h_kernel, const double *v_kernel, s32 h_support, s32 v_support) {
-    if (width <= 0 || height <= 0)
-        return NULL;
-
-    if (!h_kernel) {
-        if (v_kernel)
-            return v_convolve(src, width, height, v_kernel, v_support);
-        return imgcpy(src, width, height);
-    } else if (!v_kernel) {
-        return h_convolve(src, width, height, h_kernel, h_support);
-    }
-
-    double *temp = h_convolve(src, width, height, h_kernel, h_support);
-    if (!temp)
-        return NULL;
-
-    double *ret = v_convolve(temp, width, height, v_kernel, v_support);
-    free(temp);
-    return ret;
-}
-
 static double *h_filter(const double *src, s32 src_width, s32 height, s32 dst_width, const s32 *bounds, const double *coeffs, size_t support) {
     const s32 adj_src_width = src_width << 2;
     double *dst = calloc(((size_t)dst_width * (size_t)height) << 2, sizeof(*dst));
@@ -430,6 +347,95 @@ double *scale(const double *src, s32 src_width, s32 src_height, s32 dst_width, s
     }
 }
 
+static bool gen_kernel_filter(s32 **_bounds, double **_coeffs, s32 len, const double *kernel, size_t support, double norm) {
+    const s32 offset = support >> 1;
+    s32 *bounds = malloc(2 * (size_t)len * sizeof(*bounds));
+    if (!bounds)
+        return true;
+
+    double *coeffs = malloc(support * (size_t)len * sizeof(*coeffs));
+    if (!coeffs) {
+        free(bounds);
+        return true;
+    }
+
+    *_bounds = bounds;
+    *_coeffs = coeffs;
+
+    for (s32 z = 0; z < len; z++, bounds += 2, coeffs += support) {
+        const s32 min_z = z - offset;
+        const s32 max_z = min(z + offset, len - 1);
+        bounds[0] = max(min_z, 0);
+        bounds[1] = max_z;
+
+        double weight_total = 0.0;
+        for (s32 s = min_z, i = 0; s <= max_z; s++, i++) {
+            if (s < 0) {
+                i--;
+                continue;
+            }
+            const double weight = kernel[i];
+            coeffs[i] = weight;
+            weight_total += weight;
+        }
+
+        if (fabs(weight_total) > 2.3283064365386963e-10) {
+            weight_total = norm / weight_total;
+            for (s32 s = min_z, i = 0; s <= max_z; s++, i++)
+                coeffs[i] *= weight_total;
+        }
+    }
+
+    return false;
+}
+
+static double *h_convolve(const double *src, s32 width, s32 height, const double *kernel, s32 support, double norm) {
+    s32 *bounds;
+    double *coeffs;
+    if (gen_kernel_filter(&bounds, &coeffs, width, kernel, support, norm))
+        return NULL;
+
+    double *dst = h_filter(src, width, height, width, bounds, coeffs, support);
+
+    free(coeffs);
+    free(bounds);
+    return dst;
+}
+
+static double *v_convolve(const double *src, s32 width, s32 height, const double *kernel, s32 support, double norm) {
+    s32 *bounds;
+    double *coeffs;
+    if (gen_kernel_filter(&bounds, &coeffs, height, kernel, support, norm))
+        return NULL;
+
+    double *dst = v_filter(src, width, height, bounds, coeffs, support);
+
+    free(coeffs);
+    free(bounds);
+    return dst;
+}
+
+double *convolve(const double *src, s32 width, s32 height, const double *h_kernel, const double *v_kernel, s32 h_support, s32 v_support, double h_norm, double v_norm) {
+    if (width <= 0 || height <= 0)
+        return NULL;
+
+    if (!h_kernel) {
+        if (v_kernel)
+            return v_convolve(src, width, height, v_kernel, v_support, v_norm);
+        return imgcpy(src, width, height);
+    } else if (!v_kernel) {
+        return h_convolve(src, width, height, h_kernel, h_support, h_norm);
+    }
+
+    double *temp = h_convolve(src, width, height, h_kernel, h_support, h_norm);
+    if (!temp)
+        return NULL;
+
+    double *ret = v_convolve(temp, width, height, v_kernel, v_support, v_norm);
+    free(temp);
+    return ret;
+}
+
 static bool gen_discrete_filter(s32 **_bounds, double **_coeffs, size_t *_support, s32 src, s32 dst, double (*filter)(double), double window, double norm) {
     const s32 max_s = src - 1;
     const double factor = (double)src / dst;
@@ -453,22 +459,24 @@ static bool gen_discrete_filter(s32 **_bounds, double **_coeffs, size_t *_suppor
     *_support = support;
 
     for (s32 z = 0; z < dst; z++, bounds += 2, coeffs += support) {
-        const double mapped_x = factor * (z + 0.5) - 0.5;
-        const s32 min_z = max((s32)floor(mapped_x - window + 1.0), 0);
-        const s32 max_z = min((s32)ceil(mapped_x + window - 1.0), max_s);
+        const double mapped_z = factor * (z + 0.5) - 0.5;
+        const s32 min_z = max((s32)floor(mapped_z - window + 1.0), 0);
+        const s32 max_z = min((s32)ceil(mapped_z + window - 1.0), max_s);
         bounds[0] = min_z;
         bounds[1] = max_z;
 
         double weight_total = 0.0;
         for (s32 s = min_z, i = 0; s <= max_z; s++, i++) {
-            const double weight = filter(fabs(mapped_x - s) * filter_scale);
+            const double weight = filter(fabs(mapped_z - s) * filter_scale);
             coeffs[i] = weight;
             weight_total += weight;
         }
 
-        weight_total = norm / weight_total;
-        for (s32 s = min_z, i = 0; s <= max_z; s++, i++)
-            coeffs[i] *= weight_total;
+        if (fabs(weight_total) > 2.3283064365386963e-10) {
+            weight_total = norm / weight_total;
+            for (s32 s = min_z, i = 0; s <= max_z; s++, i++)
+                coeffs[i] *= weight_total;
+        }
     }
 
     return false;

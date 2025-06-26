@@ -42,11 +42,13 @@ double *sample(const double *src, s32 src_width, s32 src_height, s32 dst_width, 
  * \param height Image height.
  * \param h_kernel Horizontal kernel, or null pointer if no horizontal convolution is desired.
  * \param v_kernel Vertical kernel, or null pointer if no vertical convolution is desired.
- * \param h_support Support window for the horizontal kernel. Should usually be an odd number.
- * \param v_support Support window for the vertical kernel. Should usually be an odd number.
+ * \param h_support Support window for the horizontal kernel. Must be an odd number.
+ * \param v_support Support window for the vertical kernel. Must be an odd number.
+ * \param h_support Normalization constant for the horizontal kernel.
+ * \param v_support Normalization constant for the vertical kernel.
  * \return Destination image in a 4-channel format, or null pointer if OOM.
  */
-double *convolve(const double *src, s32 width, s32 height, const double *h_kernel, const double *v_kernel, s32 h_support, s32 v_support);
+double *convolve(const double *src, s32 width, s32 height, const double *h_kernel, const double *v_kernel, s32 h_support, s32 v_support, double h_norm, double v_norm);
 
 /**
  * \brief Resize an image using area averaging / pixel mixing.
