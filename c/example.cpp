@@ -168,25 +168,24 @@ SigmoidizationParams *parseSigmoidizationBeta(char *str, SigmoidizationParams *p
     return params;
 }
 
-double parseSobelMultiplier(char *str) {
+double parseGradientMultiplier(char *str) {
     double mult = parseDouble(str);
     if (mult <= 0) {
-        fprintf(stderr, "warning: invalid sobel multiplier '%s'\n", str);
+        fprintf(stderr, "warning: invalid gradient magnitude multiplier '%s'\n", str);
         return -1.0;
     }
 
     return mult;
 }
 
-double *sobelOperator(const double *src, s32 width, s32 height, double multiplier, bool alpha = true) {
-    static double Sobel_K1[3] = { 0.5, 0, -0.5 };
-    static double Sobel_K2[3] = { 0.25, 0.5, 0.25 };
+double *gradientMagnitude(const double *src, s32 width, s32 height, double multiplier, bool alpha = true) {
+    static double CDiffKernel[3] = { 0.5, 0, -0.5 };
 
-    double *Gx = convolve(src, width, height, Sobel_K1, Sobel_K2, 3, 3, 0.0, multiplier);
+    double *Gx = convolve(src, width, height, CDiffKernel, nullptr, 3, 3, 0.0, 0.0);
     if (!Gx)
         return nullptr;
 
-    double *Gy = convolve(src, width, height, Sobel_K2, Sobel_K1, 3, 3, multiplier, 0.0);
+    double *Gy = convolve(src, width, height, nullptr, CDiffKernel, 3, 3, 0.0, 0.0);
     if (!Gy) {
         free(Gx);
         return nullptr;
@@ -195,7 +194,7 @@ double *sobelOperator(const double *src, s32 width, s32 height, double multiplie
     s32 length = width * height << 2;
     if (alpha) {
         for (s32 i = 0; i < length; i++)
-            Gx[i] = sqrt(Gx[i] * Gx[i] + Gy[i] * Gy[i]);
+            Gx[i] = multiplier * sqrt(Gx[i] * Gx[i] + Gy[i] * Gy[i]);
     } else {
         s32 j = 0;
         for (s32 i = 0; i < length; i++) {
@@ -204,7 +203,7 @@ double *sobelOperator(const double *src, s32 width, s32 height, double multiplie
                 j = 0;
                 continue;
             }
-            Gx[i] = sqrt(Gx[i] * Gx[i] + Gy[i] * Gy[i]);
+            Gx[i] = multiplier * sqrt(Gx[i] * Gx[i] + Gy[i] * Gy[i]);
             j++;
         }
     }
@@ -213,7 +212,7 @@ double *sobelOperator(const double *src, s32 width, s32 height, double multiplie
     return Gx;
 }
 
-double *haloMinimizedResize(const double *src, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height, Filter sharpFilter, Filter smoothFilter, Filter sobelFilter, double multiplier) {
+double *haloMinimizedResize(const double *src, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height, Filter sharpFilter, Filter smoothFilter, Filter gradientFilter, double multiplier) {
     double *sharp = resize(src, src_width, src_height, dst_width, dst_height, sharpFilter);
     if (!sharp)
         return nullptr;
@@ -223,22 +222,22 @@ double *haloMinimizedResize(const double *src, s32 src_width, s32 src_height, s3
         return nullptr;
     }
 
-    double *sobel;
-    if (sobelFilter == sharpFilter) {
-        sobel = sobelOperator(sharp, dst_width, dst_height, multiplier);
-    } else if (sobelFilter == smoothFilter) {
-        sobel = sobelOperator(smooth, dst_width, dst_height, multiplier);
+    double *gradient;
+    if (gradientFilter == sharpFilter) {
+        gradient = gradientMagnitude(sharp, dst_width, dst_height, multiplier);
+    } else if (gradientFilter == smoothFilter) {
+        gradient = gradientMagnitude(smooth, dst_width, dst_height, multiplier);
     } else {
-        double *temp = resize(src, src_width, src_height, dst_width, dst_height, sobelFilter);
+        double *temp = resize(src, src_width, src_height, dst_width, dst_height, gradientFilter);
         if (!temp) {
             free(sharp);
             free(smooth);
             return nullptr;
         }
-        sobel = sobelOperator(temp, dst_width, dst_height, multiplier);
+        gradient = gradientMagnitude(temp, dst_width, dst_height, multiplier);
         free(temp);
     }
-    if (!sobel) {
+    if (!gradient) {
         free(sharp);
         free(smooth);
         return nullptr;
@@ -246,25 +245,25 @@ double *haloMinimizedResize(const double *src, s32 src_width, s32 src_height, s3
 
     s32 length = dst_width * dst_height << 2;
     for (s32 i = 0; i < length; i++) {
-        double c = multiplier * sobel[i];
-        sobel[i] = c * sharp[i] + (1.0 - c) * smooth[i];
+        double c = gradient[i];
+        gradient[i] = c * sharp[i] + (1.0 - c) * smooth[i];
     }
 
     free(sharp);
     free(smooth);
-    return sobel;
+    return gradient;
 }
 
 int main(int argc, char **argv) {
-    assert(argc >= 5, "usage: resize <input> <width> <height> <output> [-f filter] [-h smooth_filter] [-e sobel_filter] [-m sobel_multiplier] [-r] [-l] [-s sigmoidization_contrast]\n");
+    assert(argc >= 5, "usage: resize <input> <width> <height> <output> [-f filter] [-h smooth_filter] [-e gradient_filter] [-m gradient_multiplier] [-r] [-l] [-s sigmoidization_contrast]\n");
 
     // default options
     Filter filter = DEFAULT;
     bool haloMinimize = false;
-    bool sobelRaw = false;
-    double sobelMultiplier = -1.0;
+    bool rawGradient = false;
+    double gradientMultiplier = -1.0;
     Filter smoothFilter = DEFAULT;
-    Filter sobelFilter = DEFAULT;
+    Filter gradientFilter = DEFAULT;
     bool linearize = false;
     SigmoidizationParams *sigParamsPtr = nullptr;
     SigmoidizationParams _sigParams;
@@ -299,20 +298,20 @@ int main(int argc, char **argv) {
             break;
         case 'e':
             if (i++ == argc - 1) {
-                fprintf(stderr, "warning: no sobel filter given\n");
+                fprintf(stderr, "warning: no gradient preprocess filter given\n");
                 break;
             }
-            sobelFilter = parseFilter(argv[i]);
+            gradientFilter = parseFilter(argv[i]);
             break;
         case 'm':
             if (i++ == argc - 1) {
-                fprintf(stderr, "warning: no sobel multiplier given\n");
+                fprintf(stderr, "warning: no gradient magnitude multiplier given\n");
                 break;
             }
-            sobelMultiplier = parseSobelMultiplier(argv[i]);
+            gradientMultiplier = parseGradientMultiplier(argv[i]);
             break;
         case 'r':
-            sobelRaw = true;
+            rawGradient = true;
             break;
         case 'l':
             linearize = true;
@@ -362,23 +361,23 @@ no_options:
     double *input_f64 = u8_to_f64(input_u8, area, linearize, sigParamsPtr);
     mul_alpha(input_f64, area);
 
-    if (sobelMultiplier == -1.0) {
-        sobelMultiplier = 2.0 * sqrt((double)(dst_width * dst_height) / (double)(src_width * src_height));
-        sobelMultiplier = sobelMultiplier < 2.0 ? 2.0 : sobelMultiplier;
+    if (gradientMultiplier == -1.0) {
+        gradientMultiplier = 2.0 * sqrt((double)(dst_width * dst_height) / (double)(src_width * src_height));
+        gradientMultiplier = gradientMultiplier < 2.0 ? 2.0 : gradientMultiplier;
     }
     if (smoothFilter == DEFAULT)
         smoothFilter = filter;
-    if (sobelFilter == DEFAULT)
-        sobelFilter = smoothFilter;
+    if (gradientFilter == DEFAULT)
+        gradientFilter = smoothFilter;
 
     double *output_f64;
-    if (sobelRaw) {
-        double *temp = resize(input_f64, src_width, src_height, dst_width, dst_height, sobelFilter);
+    if (rawGradient) {
+        double *temp = resize(input_f64, src_width, src_height, dst_width, dst_height, gradientFilter);
         assert(temp, "error: out of memory");
-        output_f64 = sobelOperator(temp, dst_width, dst_height, sobelMultiplier, false);
+        output_f64 = gradientMagnitude(temp, dst_width, dst_height, gradientMultiplier, false);
         free(temp);
     } else if (haloMinimize) {
-        output_f64 = haloMinimizedResize(input_f64, src_width, src_height, dst_width, dst_height, filter, smoothFilter, sobelFilter, sobelMultiplier);
+        output_f64 = haloMinimizedResize(input_f64, src_width, src_height, dst_width, dst_height, filter, smoothFilter, gradientFilter, gradientMultiplier);
     } else {
         output_f64 = resize(input_f64, src_width, src_height, dst_width, dst_height, filter);
     }
