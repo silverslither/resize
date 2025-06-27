@@ -68,7 +68,7 @@ function preprocess(arr, linearize, params) {
             if (linearize)
                 temp = srgb_decode(temp);
             if (params != null)
-                temp = sigmoidal_contrast_decrease(temp, params)
+                temp = sigmoidal_contrast_decrease(temp, params);
         }
         arr[i] = temp;
     }
@@ -79,7 +79,7 @@ function postprocess(arr, linearize, params) {
         let temp = arr[i];
         if (i % 4 != 3) {
             if (params != null)
-                temp = sigmoidal_contrast_increase(temp, params)
+                temp = sigmoidal_contrast_increase(temp, params);
             if (linearize)
                 temp = srgb_encode(temp);
         }

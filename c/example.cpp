@@ -178,7 +178,7 @@ double parseGradientMultiplier(char *str) {
     return mult;
 }
 
-double *gradientMagnitude(const double *src, s32 width, s32 height, double multiplier, bool alpha = true) {
+double *gradientMagnitude(const double *src, pdt width, pdt height, double multiplier, bool alpha = true) {
     static double CDiffKernel[3] = { 0.5, 0, -0.5 };
 
     double *Gx = convolve(src, width, height, CDiffKernel, nullptr, 3, 3, 0.0, 0.0);
@@ -191,13 +191,13 @@ double *gradientMagnitude(const double *src, s32 width, s32 height, double multi
         return nullptr;
     }
 
-    s32 length = width * height << 2;
+    pdt length = width * height << 2;
     if (alpha) {
-        for (s32 i = 0; i < length; i++)
+        for (pdt i = 0; i < length; i++)
             Gx[i] = multiplier * sqrt(Gx[i] * Gx[i] + Gy[i] * Gy[i]);
     } else {
-        s32 j = 0;
-        for (s32 i = 0; i < length; i++) {
+        pdt j = 0;
+        for (pdt i = 0; i < length; i++) {
             if (j == 3) {
                 Gx[i] = 1.0;
                 j = 0;
@@ -212,7 +212,7 @@ double *gradientMagnitude(const double *src, s32 width, s32 height, double multi
     return Gx;
 }
 
-double *haloMinimizedResize(const double *src, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height, Filter sharpFilter, Filter smoothFilter, Filter gradientFilter, double multiplier) {
+double *haloMinimizedResize(const double *src, pdt src_width, pdt src_height, pdt dst_width, pdt dst_height, Filter sharpFilter, Filter smoothFilter, Filter gradientFilter, double multiplier) {
     double *sharp = resize(src, src_width, src_height, dst_width, dst_height, sharpFilter);
     if (!sharp)
         return nullptr;
@@ -243,8 +243,8 @@ double *haloMinimizedResize(const double *src, s32 src_width, s32 src_height, s3
         return nullptr;
     }
 
-    s32 length = dst_width * dst_height << 2;
-    for (s32 i = 0; i < length; i++) {
+    pdt length = dst_width * dst_height << 2;
+    for (pdt i = 0; i < length; i++) {
         double c = gradient[i];
         gradient[i] = c * sharp[i] + (1.0 - c) * smooth[i];
     }
@@ -362,7 +362,7 @@ no_options:
     mul_alpha(input_f64, area);
 
     if (gradientMultiplier == -1.0) {
-        gradientMultiplier = 2.0 * sqrt((double)(dst_width * dst_height) / (double)(src_width * src_height));
+        gradientMultiplier = 2.0 * sqrt(static_cast<double>(dst_width * dst_height) / (src_width * src_height));
         gradientMultiplier = gradientMultiplier < 2.0 ? 2.0 : gradientMultiplier;
     }
     if (smoothFilter == DEFAULT)

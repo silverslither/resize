@@ -21,14 +21,14 @@ export const BSpline3 = (x) => {
         return 4.0 - x * x * (6.0 - 3.0 * x);
     const x_ = 2.0 - x;
     return x_ * x_ * x_;
-}
+};
 
 // Normalized to 9.0
 export const MitNet = (x) => {
     if (x <= 1.0)
         return 8.0 - x * x * (18.0 - 10.5 * x);
     return 16.0 - x * (30.0 - x * (18.0 - 3.5 * x));
-}
+};
 
 export const CatRom = (x) => {
     if (x <= 1.0)

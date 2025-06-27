@@ -21,14 +21,14 @@ export function sample(src, src_width, src_height, dst_width, dst_height) {
     const x_factor = src_width / dst_width;
     const y_factor = src_height / dst_height;
 
-    const dst = new (Object.getPrototypeOf(src).constructor)((dst_width * dst_height) << 2);
+    const dst = new (Object.getPrototypeOf(src).constructor)((dst_width * dst_height) * 4);
 
     let dst_pixel = 0;
     for (let y = 0; y < dst_height; y++) {
         const mapped_y = Math.ceil(y_factor * (y + 0.5) - 1.0) * src_width;
         for (let x = 0; x < dst_width; x++, dst_pixel += 4) {
             const mapped_x = Math.ceil(x_factor * (x + 0.5) - 1.0);
-            const src_pixel = (mapped_y + mapped_x) << 2;
+            const src_pixel = (mapped_y + mapped_x) * 4;
             dst[dst_pixel + 0] = src[src_pixel + 0];
             dst[dst_pixel + 1] = src[src_pixel + 1];
             dst[dst_pixel + 2] = src[src_pixel + 2];
@@ -40,8 +40,8 @@ export function sample(src, src_width, src_height, dst_width, dst_height) {
 }
 
 function h_filter(src, src_width, height, dst_width, bounds, coeffs, support) {
-    const adj_src_width = src_width << 2;
-    const dst = new Float64Array((dst_width * height) << 2);
+    const adj_src_width = src_width * 4;
+    const dst = new Float64Array((dst_width * height) * 4);
 
     let bounds_ptr;
     let coeffs_ptr;
@@ -55,7 +55,7 @@ function h_filter(src, src_width, height, dst_width, bounds, coeffs, support) {
             const min_x = bounds[bounds_ptr + 0];
             const max_x = bounds[bounds_ptr + 1];
 
-            let src_pixel = src_offset + (min_x << 2);
+            let src_pixel = src_offset + (min_x * 4);
             for (let s = min_x, i = 0; s <= max_x; s++, i++, src_pixel += 4) {
                 const weight = coeffs[coeffs_ptr + i];
 
@@ -71,7 +71,7 @@ function h_filter(src, src_width, height, dst_width, bounds, coeffs, support) {
 }
 
 function v_filter(src, width, dst_height, bounds, coeffs, support) {
-    const adj_width = width << 2;
+    const adj_width = width * 4;
     const dst = new Float64Array(adj_width * dst_height);
 
     let bounds_ptr = 0;
@@ -175,6 +175,80 @@ export function scale(src, src_width, src_height, dst_width, dst_height) {
     }
 }
 
+function gen_kernel_filter(len, kernel, support, norm) {
+    const offset = Math.floor(0.5 * support);
+
+    const bounds = new Int32Array(2 * len);
+    const coeffs = new Float64Array(support * len);
+
+    let bounds_ptr = 0;
+    let coeffs_ptr = 0;
+    for (let z = 0; z < len; z++, bounds_ptr += 2, coeffs_ptr += support) {
+        const min_z = z - offset;
+        const max_z = Math.min(z + offset, len - 1);
+        bounds[bounds_ptr + 0] = Math.max(min_z, 0);
+        bounds[bounds_ptr + 1] = max_z;
+
+        let weight_total = 0.0;
+        for (let s = min_z, i = 0; s <= max_z; s++, i++) {
+            if (s < 0) {
+                i--;
+                continue;
+            }
+            const weight = kernel[i];
+            coeffs[coeffs_ptr + i] = weight;
+            weight_total += weight;
+        }
+
+        if (Math.abs(weight_total) > 2.3283064365386963e-10) {
+            weight_total = norm / weight_total;
+            for (let s = min_z, i = 0; s <= max_z; s++, i++)
+                coeffs[coeffs_ptr + i] *= weight_total;
+        }
+    }
+
+    return { bounds, coeffs };
+}
+
+function h_convolve(src, width, height, kernel, support, norm) {
+    const { bounds, coeffs } = gen_kernel_filter(width, kernel, support, norm);
+    return h_filter(src, width, height, width, bounds, coeffs, support);
+}
+
+function v_convolve(src, width, height, kernel, support, norm) {
+    const { bounds, coeffs } = gen_kernel_filter(height, kernel, support, norm);
+    return v_filter(src, width, height, bounds, coeffs, support);
+}
+
+/**
+ * Convolve an image with a horizontal and vertical kernel.
+ * @param {TypedArray} src Source image in a 4-channel format.
+ * @param {number} width Image width.
+ * @param {number} height Image height.
+ * @param {Float64Array} h_kernel Horizontal kernel, or null pointer if no horizontal convolution is desired.
+ * @param {Float64Array} v_kernel Vertical kernel, or null pointer if no vertical convolution is desired.
+ * @param {number} h_support Support window for the horizontal kernel. Must be an odd number.
+ * @param {number} v_support Support window for the vertical kernel. Must be an odd number.
+ * @param {number} h_support Normalization constant for the horizontal kernel.
+ * @param {number} v_support Normalization constant for the vertical kernel.
+ * @returns Destination image in a 4-channel format.
+ */
+export function convolve(src, width, height, h_kernel, v_kernel, h_support, v_support, h_norm, v_norm) {
+    if (width <= 0 || height <= 0)
+        return new Float64Array();
+
+    if (!h_kernel) {
+        if (!v_kernel)
+            return new Float64Array(src);
+        return v_convolve(src, width, height, v_kernel, v_support, v_norm);
+    } else if (!v_kernel) {
+        return h_convolve(src, width, height, h_kernel, h_support, h_norm);
+    }
+
+    const temp = h_convolve(src, width, height, h_kernel, h_support, h_norm);
+    return v_convolve(temp, width, height, v_kernel, v_support, v_norm);
+}
+
 function gen_discrete_filter(src, dst, filter, window, norm) {
     const max_s = src - 1;
     const factor = src / dst;
@@ -202,21 +276,23 @@ function gen_discrete_filter(src, dst, filter, window, norm) {
             weight_total += weight;
         }
 
-        weight_total = norm / weight_total;
-        for (let s = min_z, i = 0; s <= max_z; s++, i++)
-            coeffs[coeffs_ptr + i] *= weight_total;
+        if (Math.abs(weight_total) > 2.3283064365386963e-10) {
+            weight_total = norm / weight_total;
+            for (let s = min_z, i = 0; s <= max_z; s++, i++)
+                coeffs[coeffs_ptr + i] *= weight_total;
+        }
     }
 
     return { bounds, coeffs, support };
 }
 
 function h_reconstruct(src, src_width, height, dst_width, filter, window, norm) {
-    const { bounds, coeffs, support } = gen_discrete_filter(src_width, dst_width, filter, window, norm)
+    const { bounds, coeffs, support } = gen_discrete_filter(src_width, dst_width, filter, window, norm);
     return h_filter(src, src_width, height, dst_width, bounds, coeffs, support);
 }
 
 function v_reconstruct(src, width, src_height, dst_height, filter, window, norm) {
-    const { bounds, coeffs, support } = gen_discrete_filter(src_height, dst_height, filter, window, norm)
+    const { bounds, coeffs, support } = gen_discrete_filter(src_height, dst_height, filter, window, norm);
     return v_filter(src, width, dst_height, bounds, coeffs, support);
 }
 
@@ -268,7 +344,7 @@ function h_iconvolve(img, width, height, L, m, c) {
     const L_inf = L[m - 1];
     const L_inf_mul = L_inf * c;
     const L_inf_div = L[n] / c;
-    const f_adj = (width << 2) + 8;
+    const f_adj = (width * 4) + 8;
     let f = 4;
 
     for (let y = 0; y < height; y++) {
@@ -328,7 +404,7 @@ function v_iconvolve(img, width, height, L, m, c) {
     const L_inf = L[m - 1];
     const L_inf_mul = L_inf * c;
     const L_inf_div = L[n] / c;
-    const adj_width = width << 2;
+    const adj_width = width * 4;
     let pf = 0;
     let f = adj_width;
 

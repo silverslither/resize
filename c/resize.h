@@ -3,9 +3,10 @@
 #ifndef RESIZE_RESIZE
 #define RESIZE_RESIZE
 
-#include <stdint.h>
+#include <stdbool.h>
+#include <stddef.h>
 
-typedef int32_t s32;
+typedef ptrdiff_t pdt;
 
 typedef enum Filter {
     DEFAULT,
@@ -33,7 +34,18 @@ typedef enum Filter {
  * \param dst_height Destination image height.
  * \return Destination image in a 4-channel format, or null pointer if OOM.
  */
-double *sample(const double *src, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height);
+double *sample(const double *src, pdt src_width, pdt src_height, pdt dst_width, pdt dst_height);
+
+/**
+ * \brief Resize an image using area averaging / pixel mixing.
+ * \param src Source image in a 4-channel format.
+ * \param src_width Source image width.
+ * \param src_height Source image height.
+ * \param dst_width Destination image width.
+ * \param dst_height Destination image height.
+ * \return Destination image in a 4-channel format, or null pointer if OOM.
+ */
+double *scale(const double *src, pdt src_width, pdt src_height, pdt dst_width, pdt dst_height);
 
 /**
  * \brief Convolve an image with a horizontal and vertical kernel.
@@ -48,18 +60,7 @@ double *sample(const double *src, s32 src_width, s32 src_height, s32 dst_width, 
  * \param v_support Normalization constant for the vertical kernel.
  * \return Destination image in a 4-channel format, or null pointer if OOM.
  */
-double *convolve(const double *src, s32 width, s32 height, const double *h_kernel, const double *v_kernel, s32 h_support, s32 v_support, double h_norm, double v_norm);
-
-/**
- * \brief Resize an image using area averaging / pixel mixing.
- * \param src Source image in a 4-channel format.
- * \param src_width Source image width.
- * \param src_height Source image height.
- * \param dst_width Destination image width.
- * \param dst_height Destination image height.
- * \return Destination image in a 4-channel format, or null pointer if OOM.
- */
-double *scale(const double *src, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height);
+double *convolve(const double *src, pdt width, pdt height, const double *h_kernel, const double *v_kernel, pdt h_support, pdt v_support, double h_norm, double v_norm);
 
 /**
  * \brief Resize an image using a reconstruction filter.
@@ -74,7 +75,7 @@ double *scale(const double *src, s32 src_width, s32 src_height, s32 dst_width, s
  * \param nop Boolean flag for a no-op case.
  * \return Destination image in a 4-channel format, or null pointer if OOM.
  */
-double *reconstruct(const double *src, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height, double (*filter)(double), double window, double norm, int nop);
+double *reconstruct(const double *src, pdt src_width, pdt src_height, pdt dst_width, pdt dst_height, double (*filter)(double), double window, double norm, bool nop);
 
 /**
  * \brief Resize an image using a reconstruction filter and an inverse discrete convolution.
@@ -92,7 +93,7 @@ double *reconstruct(const double *src, s32 src_width, s32 src_height, s32 dst_wi
  * \param nop Boolean flag for a no-op case.
  * \return Destination image in a 4-channel format, or null pointer if OOM.
  */
-double *reconstruct_iconvolve(const double *src, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height, double (*filter)(double), double window, double norm, const double *L, int m, double c, int nop);
+double *reconstruct_iconvolve(const double *src, pdt src_width, pdt src_height, pdt dst_width, pdt dst_height, double (*filter)(double), double window, double norm, const double *L, pdt m, double c, bool nop);
 
 /**
  * \brief Wrapper for `sample`, `scale`, `reconstruct`, and `reconstruct_iconvolve`.
@@ -104,6 +105,6 @@ double *reconstruct_iconvolve(const double *src, s32 src_width, s32 src_height, 
  * \param filter Resizing method (filter) to be used. Defaults to Mitchell-Netravali.
  * \return Destination image in a 4-channel format, or null pointer if OOM.
  */
-double *resize(const double *src, s32 src_width, s32 src_height, s32 dst_width, s32 dst_height, Filter filter);
+double *resize(const double *src, pdt src_width, pdt src_height, pdt dst_width, pdt dst_height, Filter filter);
 
 #endif

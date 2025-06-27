@@ -18,7 +18,7 @@ $CC $CFLAGS filters.c
 $CC $CFLAGS resize.c
 $CC $CFLAGS colour.c
 $CXX $CXXFLAGS -Wno-type-limits -Wno-tautological-constant-out-of-range-compare -Wno-unused-function include/fpng.cpp
-$CXX $CXXFLAGS example.cpp
+$CXX $CXXFLAGS -Wold-style-cast example.cpp
 
 $CXX -lm -o resize *.o
 
