@@ -231,17 +231,17 @@ function v_convolve(src, width, height, kernel, support, norm) {
  * @param {number} v_support Support window for the vertical kernel. Must be an odd number.
  * @param {number} h_support Normalization constant for the horizontal kernel.
  * @param {number} v_support Normalization constant for the vertical kernel.
- * @returns Destination image in a 4-channel format.
+ * @returns {Float64Array} Destination image in a 4-channel format.
  */
 export function convolve(src, width, height, h_kernel, v_kernel, h_support, v_support, h_norm, v_norm) {
     if (width <= 0 || height <= 0)
         return new Float64Array();
 
-    if (!h_kernel) {
-        if (!v_kernel)
+    if (h_kernel == null) {
+        if (v_kernel == null)
             return new Float64Array(src);
         return v_convolve(src, width, height, v_kernel, v_support, v_norm);
-    } else if (!v_kernel) {
+    } else if (v_kernel == null) {
         return h_convolve(src, width, height, h_kernel, h_support, h_norm);
     }
 

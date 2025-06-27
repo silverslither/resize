@@ -1,3 +1,5 @@
 c/include/*
 c/build/*
+js/node_modules/*
+js/*.json
 */*.png

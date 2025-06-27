@@ -1,15 +1,19 @@
 // Copyright (c) 2024-2025 silverslither.
 
-import { Filter, resize } from "./resize.js";
+import { Filter, convolve, resize } from "./resize.js";
 import { mul_alpha, div_alpha, srgb_encode, srgb_decode, get_sigmoidization_params, sigmoidal_contrast_increase, sigmoidal_contrast_decrease } from "./colour.js";
 
-let input, width, height, filterName, linearizeBox, beta, submit, err;
+let input, width, height, filterName, smoothFilterName, gradientFilterName, gmultiplier, rawGradientBox, linearizeBox, beta, submit, err;
 
 document.addEventListener("DOMContentLoaded", () => {
     input = document.getElementById("input");
     width = document.getElementById("width");
     height = document.getElementById("height");
     filterName = document.getElementById("filter");
+    smoothFilterName = document.getElementById("smooth-filter");
+    gradientFilterName = document.getElementById("gradient-filter");
+    gmultiplier = document.getElementById("gradient-multiplier");
+    rawGradientBox = document.getElementById("raw-gradient");
     linearizeBox = document.getElementById("linearize");
     beta = document.getElementById("beta");
     submit = document.querySelector("button");
@@ -47,13 +51,35 @@ async function main(file) {
         return;
     }
     const filter = parseFilter(filterName.value);
-    const sigParams = parseSigmoidizationBeta(beta.value);
+    let smoothFilter = parseFilter(smoothFilterName.value);
+    let gradientFilter = parseFilter(gradientFilterName.value);
+    const haloMinimize = smoothFilter !== Filter.DEFAULT;
+    let gradientMultiplier = parseGradientMultiplier(gmultiplier.value);
+    const rawGradient = rawGradientBox.checked;
     const linearize = linearizeBox.checked;
+    const sigParams = parseSigmoidizationBeta(beta.value);
 
     preprocess(src.data, linearize, sigParams);
     mul_alpha(src.data);
 
-    const dst = resize(src.data, src.width, src.height, dst_width, dst_height, filter);
+    if (gradientMultiplier == -1.0) {
+        gradientMultiplier = 2.0 * Math.sqrt((dst_width * dst_height) / (src.width * src.height));
+        gradientMultiplier = gradientMultiplier < 2.0 ? 2.0 : gradientMultiplier;
+    }
+    if (smoothFilter == Filter.DEFAULT)
+        smoothFilter = filter;
+    if (gradientFilter == Filter.DEFAULT)
+        gradientFilter = smoothFilter;
+
+    let dst;
+    if (rawGradient) {
+        const temp = resize(src.data, src.width, src.height, dst_width, dst_height, gradientFilter);
+        dst = gradientMagnitude(temp, dst_width, dst_height, gradientMultiplier, false);
+    } else if (haloMinimize) {
+        dst = haloMinimizedResize(src.data, src.width, src.height, dst_width, dst_height, filter, smoothFilter, gradientFilter, gradientMultiplier);
+    } else {
+        dst = resize(src.data, src.width, src.height, dst_width, dst_height, filter);
+    }
 
     div_alpha(dst);
     postprocess(dst, linearize, sigParams);
@@ -125,16 +151,78 @@ function parseFilter(str) {
 }
 
 function parseSigmoidizationBeta(str) {
+    if (str === "")
+        return null;
+
     const beta = Number(str);
-    if (beta !== beta || beta < 0) {
+    if (beta !== beta || beta <= 0) {
         err.innerText += `warning: invalid sigmoidization contrast '${str}'\n`;
         return null;
     }
 
-    if (beta === 0)
-        return null;
-
     return get_sigmoidization_params(beta);
+}
+
+function parseGradientMultiplier(str) {
+    if (str === "")
+        return -1.0;
+
+    const mult = Number(str);
+    if (mult !== mult || mult <= 0) {
+        err.innerText += `warning: invalid gradient magnitude multiplier '${str}'\n`;
+        return -1.0;
+    }
+
+    return mult;
+}
+
+function haloMinimizedResize(src, src_width, src_height, dst_width, dst_height, sharpFilter, smoothFilter, gradientFilter, multiplier) {
+    const sharp = resize(src, src_width, src_height, dst_width, dst_height, sharpFilter);
+    const smooth = resize(src, src_width, src_height, dst_width, dst_height, smoothFilter);
+
+    let gradient;
+    if (gradientFilter == sharpFilter) {
+        gradient = gradientMagnitude(sharp, dst_width, dst_height, multiplier);
+    } else if (gradientFilter == smoothFilter) {
+        gradient = gradientMagnitude(smooth, dst_width, dst_height, multiplier);
+    } else {
+        const temp = resize(src, src_width, src_height, dst_width, dst_height, gradientFilter);
+        gradient = gradientMagnitude(temp, dst_width, dst_height, multiplier);
+    }
+
+    const length = dst_width * dst_height << 2;
+    for (let i = 0; i < length; i++) {
+        const c = gradient[i];
+        gradient[i] = c * sharp[i] + (1.0 - c) * smooth[i];
+    }
+
+    return gradient;
+}
+
+function gradientMagnitude(src, width, height, multiplier, alpha = true) {
+    const CDiffKernel = new Float64Array([0.5, 0, -0.5]);
+
+    const Gx = convolve(src, width, height, CDiffKernel, null, 3, 3, 0.0, 0.0);
+    const Gy = convolve(src, width, height, null, CDiffKernel, 3, 3, 0.0, 0.0);
+
+    const length = width * height << 2;
+    if (alpha) {
+        for (let i = 0; i < length; i++)
+            Gx[i] = multiplier * Math.sqrt(Gx[i] * Gx[i] + Gy[i] * Gy[i]);
+    } else {
+        let j = 0;
+        for (let i = 0; i < length; i++) {
+            if (j == 3) {
+                Gx[i] = 1.0;
+                j = 0;
+                continue;
+            }
+            Gx[i] = multiplier * Math.sqrt(Gx[i] * Gx[i] + Gy[i] * Gy[i]);
+            j++;
+        }
+    }
+
+    return Gx;
 }
 
 async function decode(file) {
