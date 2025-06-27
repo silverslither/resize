@@ -335,7 +335,7 @@ export function reconstruct(src, src_width, src_height, dst_width, dst_height, f
     }
 }
 
-function h_iconvolve(img, width, height, L, m, c) {
+function h_iconvolve_ip(img, width, height, L, m, c) {
     let n = m - 1;
     if (m >= width)
         n = m = width - 1;
@@ -344,7 +344,7 @@ function h_iconvolve(img, width, height, L, m, c) {
     const L_inf = L[m - 1];
     const L_inf_mul = L_inf * c;
     const L_inf_div = L[n] / c;
-    const f_adj = (width * 4) + 8;
+    const f_adj = (width * 4) + 4;
     let f = 4;
 
     for (let y = 0; y < height; y++) {
@@ -391,11 +391,11 @@ function h_iconvolve(img, width, height, L, m, c) {
         img[f + 2] = L_0 * (img[f + 2] - c * img[f + 6]);
         img[f + 3] = L_0 * (img[f + 3] - c * img[f + 7]);
 
-        f += f_adj - 4;
+        f += f_adj;
     }
 }
 
-function v_iconvolve(img, width, height, L, m, c) {
+function v_iconvolve_ip(img, width, height, L, m, c) {
     let n = m - 1;
     if (m >= height)
         n = m = height - 1;
@@ -408,54 +408,36 @@ function v_iconvolve(img, width, height, L, m, c) {
     let pf = 0;
     let f = adj_width;
 
-    for (let x = 0; x < width; x++) {
-        let y;
+    let y;
 
-        for (y = 1; y < m; y++, pf = f, f += adj_width) {
-            const L_y = L[y - 1];
-            img[f + 0] -= L_y * img[pf + 0];
-            img[f + 1] -= L_y * img[pf + 1];
-            img[f + 2] -= L_y * img[pf + 2];
-            img[f + 3] -= L_y * img[pf + 3];
-        }
-
-        for (; y < height - 1; y++, pf = f, f += adj_width) {
-            img[f + 0] -= L_inf * img[pf + 0];
-            img[f + 1] -= L_inf * img[pf + 1];
-            img[f + 2] -= L_inf * img[pf + 2];
-            img[f + 3] -= L_inf * img[pf + 3];
-        }
-
-        img[f + 0] = L_inf_div * (img[f + 0] - L_inf_mul * img[pf + 0]);
-        img[f + 1] = L_inf_div * (img[f + 1] - L_inf_mul * img[pf + 1]);
-        img[f + 2] = L_inf_div * (img[f + 2] - L_inf_mul * img[pf + 2]);
-        img[f + 3] = L_inf_div * (img[f + 3] - L_inf_mul * img[pf + 3]);
-        pf = f;
-        f = pf - adj_width;
-
-        for (y = height - 2; y >= m; y--, pf = f, f -= adj_width) {
-            img[f + 0] = L_inf * (img[f + 0] - img[pf + 0]);
-            img[f + 1] = L_inf * (img[f + 1] - img[pf + 1]);
-            img[f + 2] = L_inf * (img[f + 2] - img[pf + 2]);
-            img[f + 3] = L_inf * (img[f + 3] - img[pf + 3]);
-        }
-
-        for (; y > 0; y--, pf = f, f -= adj_width) {
-            const L_y = L[y];
-            img[f + 0] = L_y * (img[f + 0] - img[pf + 0]);
-            img[f + 1] = L_y * (img[f + 1] - img[pf + 1]);
-            img[f + 2] = L_y * (img[f + 2] - img[pf + 2]);
-            img[f + 3] = L_y * (img[f + 3] - img[pf + 3]);
-        }
-
-        img[f + 0] = L_0 * (img[f + 0] - c * img[pf + 0]);
-        img[f + 1] = L_0 * (img[f + 1] - c * img[pf + 1]);
-        img[f + 2] = L_0 * (img[f + 2] - c * img[pf + 2]);
-        img[f + 3] = L_0 * (img[f + 3] - c * img[pf + 3]);
-
-        pf = f + 4;
-        f = pf + adj_width;
+    for (y = 1; y < m; y++) {
+        const L_y = L[y - 1];
+        for (let x = 0; x < adj_width; x++, f++, pf++)
+            img[f] -= L_y * img[pf];
     }
+
+    for (; y < height - 1; y++)
+        for (let x = 0; x < adj_width; x++, f++, pf++)
+            img[f] -= L_inf * img[pf];
+
+    for (let x = 0; x < adj_width; x++, f++, pf++)
+        img[f] = L_inf_div * (img[f] - L_inf_mul * img[pf]);
+
+    pf = f - 1;
+    f = pf - adj_width;
+
+    for (y = height - 2; y >= m; y--)
+        for (let x = 0; x < adj_width; x++, f--, pf--)
+            img[f] = L_inf * (img[f] - img[pf]);
+
+    for (; y > 0; y--) {
+        const L_y = L[y];
+        for (let x = 0; x < adj_width; x++, f--, pf--)
+            img[f] = L_y * (img[f] - img[pf]);
+    }
+
+    for (let x = 0; x < adj_width; x++, f--, pf--)
+        img[f] = L_0 * (img[f] - c * img[pf]);
 }
 
 function h_reconstruct_iconvolve(src, src_width, height, dst_width, filter, window, norm, L, m, c) {
@@ -464,14 +446,14 @@ function h_reconstruct_iconvolve(src, src_width, height, dst_width, filter, wind
             return h_reconstruct(src, src_width, height, dst_width, filter, window, 1.0);
 
         const temp = new Float64Array(src);
-        h_iconvolve(temp, src_width, height, L, m, c);
+        h_iconvolve_ip(temp, src_width, height, L, m, c);
         return h_reconstruct(temp, src_width, height, dst_width, filter, window, norm);
     } else {
         if (dst_width === 1)
             return h_reconstruct(src, src_width, height, dst_width, filter, window, 1.0);
 
         const ret = h_reconstruct(src, src_width, height, dst_width, filter, window, norm);
-        h_iconvolve(ret, dst_width, height, L, m, c);
+        h_iconvolve_ip(ret, dst_width, height, L, m, c);
         return ret;
     }
 }
@@ -482,14 +464,14 @@ function v_reconstruct_iconvolve(src, width, src_height, dst_height, filter, win
             return v_reconstruct(src, width, src_height, dst_height, filter, window, 1.0);
 
         const temp = new Float64Array(src);
-        v_iconvolve(temp, width, src_height, L, m, c);
+        v_iconvolve_ip(temp, width, src_height, L, m, c);
         return v_reconstruct(temp, width, src_height, dst_height, filter, window, norm);
     } else {
         if (dst_height === 1)
             return v_reconstruct(src, width, src_height, dst_height, filter, window, 1.0);
 
         const ret = v_reconstruct(src, width, src_height, dst_height, filter, window, norm);
-        v_iconvolve(ret, width, dst_height, L, m, c);
+        v_iconvolve_ip(ret, width, dst_height, L, m, c);
         return ret;
     }
 }
@@ -551,9 +533,10 @@ export const Filter = {
     CATROM: 8,
     HAMMING3: 9,
     HAMMING4: 10,
-    BSPLINE2I: 11,
-    BSPLINE3I: 12,
-    OMOMS3I: 13
+    HAMMING8: 11,
+    BSPLINE2I: 12,
+    BSPLINE3I: 13,
+    OMOMS3I: 14
 };
 
 /**
@@ -589,6 +572,8 @@ export function resize(src, src_width, src_height, dst_width, dst_height, filter
             return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.Hamming3, 3.0, 1.0, 1);
         case Filter.HAMMING4:
             return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.Hamming4, 4.0, 1.0, 1);
+        case Filter.HAMMING8:
+            return reconstruct(src, src_width, src_height, dst_width, dst_height, Filters.Hamming8, 8.0, 1.0, 1);
         case Filter.BSPLINE2I:
             return reconstruct_iconvolve(src, src_width, src_height, dst_width, dst_height, Filters.BSpline2, 1.5, 8.0, Filters.L_bspline2i, 11, 1.1428571428571428, 1);
         case Filter.BSPLINE3I:

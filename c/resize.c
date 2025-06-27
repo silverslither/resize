@@ -431,7 +431,7 @@ static void h_iconvolve_ip(double *img, pdt width, pdt height, const double *L, 
     const double L_inf = L[m - 1];
     const double L_inf_mul = L_inf * c;
     const double L_inf_div = L[n] / c;
-    const pdt f_adj = (width << 2) + 8;
+    const pdt f_adj = (width << 2) + 4;
     double *f = img + 4;
 
     for (pdt y = 0; y < height; y++) {
@@ -478,7 +478,7 @@ static void h_iconvolve_ip(double *img, pdt width, pdt height, const double *L, 
         f[2] = L_0 * (f[2] - c * f[6]);
         f[3] = L_0 * (f[3] - c * f[7]);
 
-        f += f_adj - 4;
+        f += f_adj;
     }
 }
 
@@ -495,54 +495,36 @@ static void v_iconvolve_ip(double *img, pdt width, pdt height, const double *L, 
     double *pf = img;
     double *f = pf + adj_width;
 
-    for (pdt x = 0; x < width; x++) {
-        pdt y;
+    pdt y;
 
-        for (y = 1; y < m; y++, pf = f, f += adj_width) {
-            const double L_y = L[y - 1];
+    for (y = 1; y < m; y++) {
+        const double L_y = L[y - 1];
+        for (pdt x = 0; x < adj_width; x++, f++, pf++)
             f[0] -= L_y * pf[0];
-            f[1] -= L_y * pf[1];
-            f[2] -= L_y * pf[2];
-            f[3] -= L_y * pf[3];
-        }
-
-        for (; y < height - 1; y++, pf = f, f += adj_width) {
-            f[0] -= L_inf * pf[0];
-            f[1] -= L_inf * pf[1];
-            f[2] -= L_inf * pf[2];
-            f[3] -= L_inf * pf[3];
-        }
-
-        f[0] = L_inf_div * (f[0] - L_inf_mul * pf[0]);
-        f[1] = L_inf_div * (f[1] - L_inf_mul * pf[1]);
-        f[2] = L_inf_div * (f[2] - L_inf_mul * pf[2]);
-        f[3] = L_inf_div * (f[3] - L_inf_mul * pf[3]);
-        pf = f;
-        f = pf - adj_width;
-
-        for (y = height - 2; y >= m; y--, pf = f, f -= adj_width) {
-            f[0] = L_inf * (f[0] - pf[0]);
-            f[1] = L_inf * (f[1] - pf[1]);
-            f[2] = L_inf * (f[2] - pf[2]);
-            f[3] = L_inf * (f[3] - pf[3]);
-        }
-
-        for (; y > 0; y--, pf = f, f -= adj_width) {
-            const double L_y = L[y];
-            f[0] = L_y * (f[0] - pf[0]);
-            f[1] = L_y * (f[1] - pf[1]);
-            f[2] = L_y * (f[2] - pf[2]);
-            f[3] = L_y * (f[3] - pf[3]);
-        }
-
-        f[0] = L_0 * (f[0] - c * pf[0]);
-        f[1] = L_0 * (f[1] - c * pf[1]);
-        f[2] = L_0 * (f[2] - c * pf[2]);
-        f[3] = L_0 * (f[3] - c * pf[3]);
-
-        pf = f + 4;
-        f = pf + adj_width;
     }
+
+    for (; y < height - 1; y++)
+        for (pdt x = 0; x < adj_width; x++, f++, pf++)
+            f[0] -= L_inf * pf[0];
+
+    for (pdt x = 0; x < adj_width; x++, f++, pf++)
+        f[0] = L_inf_div * (f[0] - L_inf_mul * pf[0]);
+
+    pf = f - 1;
+    f = pf - adj_width;
+
+    for (y = height - 2; y >= m; y--)
+        for (pdt x = 0; x < adj_width; x++, f--, pf--)
+            f[0] = L_inf * (f[0] - pf[0]);
+
+    for (; y > 0; y--) {
+        const double L_y = L[y];
+        for (pdt x = 0; x < adj_width; x++, f--, pf--)
+            f[0] = L_y * (f[0] - pf[0]);
+    }
+
+    for (pdt x = 0; x < adj_width; x++, f--, pf--)
+        f[0] = L_0 * (f[0] - c * pf[0]);
 }
 
 static double *h_reconstruct_iconvolve(const double *src, pdt src_width, pdt height, pdt dst_width, double (*filter)(double), double window, double norm, const double *L, pdt m, double c) {
@@ -656,6 +638,8 @@ double *resize(const double *src, pdt src_width, pdt src_height, pdt dst_width, 
         return reconstruct(src, src_width, src_height, dst_width, dst_height, Hamming3, 3.0, 1.0, 1);
     case HAMMING4:
         return reconstruct(src, src_width, src_height, dst_width, dst_height, Hamming4, 4.0, 1.0, 1);
+    case HAMMING8:
+        return reconstruct(src, src_width, src_height, dst_width, dst_height, Hamming8, 8.0, 1.0, 1);
     case BSPLINE2I:
         return reconstruct_iconvolve(src, src_width, src_height, dst_width, dst_height, BSpline2, 1.5, 8.0, L_bspline2i, 11, 1.1428571428571428, 1);
     case BSPLINE3I:

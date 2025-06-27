@@ -77,6 +77,23 @@ export const Hamming4 = (x) => {
     return hsin(poly_x) * (0.53836 + (flip ? -w : w)) / x;
 };
 
+const hcos8w = (x) => {
+    const x2 = x * x;
+    let v = 0.0004563753109646334 - 0.0000021883654523566772 * x2;
+    v = 0.03559428341963083 - v * x2;
+    return 0.46164 - v * x2;
+};
+export const Hamming8 = (x) => {
+    if (x < 7.450580596923828e-9)
+        return 1.0;
+    const round_x = Math.round(x);
+    const sign = (round_x << 31 >> 31) | 1;
+    const poly_x = sign * (x - round_x);
+    const flip = x > 4.0;
+    const w = hcos8w(flip ? x - 8.0 : x);
+    return hsin(poly_x) * (0.53836 + (flip ? -w : w)) / x;
+};
+
 export const L_bspline2i = new Float64Array([
     0.14583333333333334,
     0.17142857142857143,

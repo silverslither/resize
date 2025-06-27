@@ -14,6 +14,7 @@ double CatRom(double x);
 
 double Hamming3(double x);
 double Hamming4(double x);
+double Hamming8(double x);
 
 extern double L_bspline2i[11];
 extern double L_bspline3i[14];

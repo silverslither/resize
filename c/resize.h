@@ -20,6 +20,7 @@ typedef enum Filter {
     CATROM,
     HAMMING3,
     HAMMING4,
+    HAMMING8,
     BSPLINE2I,
     BSPLINE3I,
     OMOMS3I,

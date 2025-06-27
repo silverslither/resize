@@ -81,6 +81,23 @@ double Hamming4(double x) {
     return hsin(poly_x) * (0.53836 + w) / x;
 }
 
+static inline double hcos8w(double x) {
+    const double x2 = x * x;
+    double v = 0.0004563753109646334 - 0.0000021883654523566772 * x2;
+    v = 0.03559428341963083 - v * x2;
+    return 0.46164 - v * x2;
+}
+double Hamming8(double x) {
+    if (x < 7.450580596923828e-9)
+        return 1.0;
+    const int round_x = (int)(x + 0.5);
+    const double dist_x = x - (double)round_x;
+    const uint64_t poly_x_ = ((uint64_t)round_x << 63) ^ *(const uint64_t *)&dist_x;
+    const double poly_x = *(const double *)&poly_x_;
+    const double w = copysign(hcos8w(x > 4.0 ? x - 8.0 : x), 4.0 - x);
+    return hsin(poly_x) * (0.53836 + w) / x;
+}
+
 double L_bspline2i[11] = {
     0.14583333333333334,
     0.17142857142857143,
