@@ -225,8 +225,8 @@ function v_convolve(src, width, height, kernel, support, norm) {
  * @param {TypedArray} src Source image in a 4-channel format.
  * @param {number} width Image width.
  * @param {number} height Image height.
- * @param {Float64Array} h_kernel Horizontal kernel, or null pointer if no horizontal convolution is desired.
- * @param {Float64Array} v_kernel Vertical kernel, or null pointer if no vertical convolution is desired.
+ * @param {Float64Array | null} h_kernel Horizontal kernel, or null if no horizontal convolution is desired.
+ * @param {Float64Array | null} v_kernel Vertical kernel, or null if no vertical convolution is desired.
  * @param {number} h_support Support window for the horizontal kernel. Must be an odd number.
  * @param {number} v_support Support window for the vertical kernel. Must be an odd number.
  * @param {number} h_support Normalization constant for the horizontal kernel.
@@ -536,7 +536,7 @@ export const Filter = {
     HAMMING8: 11,
     BSPLINE2I: 12,
     BSPLINE3I: 13,
-    OMOMS3I: 14
+    OMOMS3I: 14,
 };
 
 /**

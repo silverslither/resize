@@ -173,13 +173,13 @@ double parseGradientMultiplier(char *str) {
     double mult = parseDouble(str);
     if (mult <= 0) {
         fprintf(stderr, "warning: invalid gradient magnitude multiplier '%s'\n", str);
-        return -1.0;
+        return 2.0;
     }
 
     return mult;
 }
 
-double *gradientMagnitude(const double *src, pdt width, pdt height, double multiplier, bool alpha = true) {
+double *gradientMagnitude(const double *src, pdt width, pdt height, double xmult, double ymult, bool alpha = true) {
     static double CDiffKernel[3] = { 0.5, 0, -0.5 };
 
     double *Gx = convolve(src, width, height, CDiffKernel, nullptr, 3, 3, 0.0, 0.0);
@@ -192,20 +192,19 @@ double *gradientMagnitude(const double *src, pdt width, pdt height, double multi
         return nullptr;
     }
 
+    xmult *= xmult;
+    ymult *= ymult;
     pdt length = width * height << 2;
     if (alpha) {
         for (pdt i = 0; i < length; i++)
-            Gx[i] = multiplier * sqrt(Gx[i] * Gx[i] + Gy[i] * Gy[i]);
+            Gx[i] = sqrt(xmult * Gx[i] * Gx[i] + ymult * Gy[i] * Gy[i]);
     } else {
-        pdt j = 0;
         for (pdt i = 0; i < length; i++) {
-            if (j == 3) {
+            if (i % 4 == 3) {
                 Gx[i] = 1.0;
-                j = 0;
                 continue;
             }
-            Gx[i] = multiplier * sqrt(Gx[i] * Gx[i] + Gy[i] * Gy[i]);
-            j++;
+            Gx[i] = sqrt(xmult * Gx[i] * Gx[i] + ymult * Gy[i] * Gy[i]);
         }
     }
 
@@ -223,11 +222,13 @@ double *haloMinimizedResize(const double *src, pdt src_width, pdt src_height, pd
         return nullptr;
     }
 
+    double xmult = fmax(static_cast<double>(dst_width) / src_width, 1.0);
+    double ymult = fmax(static_cast<double>(dst_height) / src_height, 1.0);
     double *gradient;
     if (gradientFilter == sharpFilter) {
-        gradient = gradientMagnitude(sharp, dst_width, dst_height, multiplier);
+        gradient = gradientMagnitude(sharp, dst_width, dst_height, xmult, ymult);
     } else if (gradientFilter == smoothFilter) {
-        gradient = gradientMagnitude(smooth, dst_width, dst_height, multiplier);
+        gradient = gradientMagnitude(smooth, dst_width, dst_height, xmult, ymult);
     } else {
         double *temp = resize(src, src_width, src_height, dst_width, dst_height, gradientFilter);
         if (!temp) {
@@ -235,7 +236,7 @@ double *haloMinimizedResize(const double *src, pdt src_width, pdt src_height, pd
             free(smooth);
             return nullptr;
         }
-        gradient = gradientMagnitude(temp, dst_width, dst_height, multiplier);
+        gradient = gradientMagnitude(temp, dst_width, dst_height, xmult, ymult);
         free(temp);
     }
     if (!gradient) {
@@ -246,7 +247,7 @@ double *haloMinimizedResize(const double *src, pdt src_width, pdt src_height, pd
 
     pdt length = dst_width * dst_height << 2;
     for (pdt i = 0; i < length; i++) {
-        double c = gradient[i];
+        double c = multiplier * gradient[i];
         gradient[i] = c * sharp[i] + (1.0 - c) * smooth[i];
     }
 
@@ -262,7 +263,7 @@ int main(int argc, char **argv) {
     Filter filter = DEFAULT;
     bool haloMinimize = false;
     bool rawGradient = false;
-    double gradientMultiplier = -1.0;
+    double gradientMultiplier = 2.0;
     Filter smoothFilter = DEFAULT;
     Filter gradientFilter = DEFAULT;
     bool linearize = false;
@@ -362,10 +363,6 @@ no_options:
     double *input_f64 = u8_to_f64(input_u8, area, linearize, sigParamsPtr);
     mul_alpha(input_f64, area);
 
-    if (gradientMultiplier == -1.0) {
-        gradientMultiplier = 2.0 * sqrt(static_cast<double>(dst_width * dst_height) / (src_width * src_height));
-        gradientMultiplier = gradientMultiplier < 2.0 ? 2.0 : gradientMultiplier;
-    }
     if (smoothFilter == DEFAULT)
         smoothFilter = filter;
     if (gradientFilter == DEFAULT)
@@ -375,7 +372,9 @@ no_options:
     if (rawGradient) {
         double *temp = resize(input_f64, src_width, src_height, dst_width, dst_height, gradientFilter);
         assert(temp, "error: out of memory");
-        output_f64 = gradientMagnitude(temp, dst_width, dst_height, gradientMultiplier, false);
+        double xmult = gradientMultiplier * fmax(static_cast<double>(dst_width) / src_width, 1.0);
+        double ymult = gradientMultiplier * fmax(static_cast<double>(dst_height) / src_height, 1.0);
+        output_f64 = gradientMagnitude(temp, dst_width, dst_height, xmult, ymult, false);
         free(temp);
     } else if (haloMinimize) {
         output_f64 = haloMinimizedResize(input_f64, src_width, src_height, dst_width, dst_height, filter, smoothFilter, gradientFilter, gradientMultiplier);

@@ -62,10 +62,6 @@ async function main(file) {
     preprocess(src.data, linearize, sigParams);
     mul_alpha(src.data);
 
-    if (gradientMultiplier == -1.0) {
-        gradientMultiplier = 2.0 * Math.sqrt((dst_width * dst_height) / (src.width * src.height));
-        gradientMultiplier = gradientMultiplier < 2.0 ? 2.0 : gradientMultiplier;
-    }
     if (smoothFilter == Filter.DEFAULT)
         smoothFilter = filter;
     if (gradientFilter == Filter.DEFAULT)
@@ -74,7 +70,9 @@ async function main(file) {
     let dst;
     if (rawGradient) {
         const temp = resize(src.data, src.width, src.height, dst_width, dst_height, gradientFilter);
-        dst = gradientMagnitude(temp, dst_width, dst_height, gradientMultiplier, false);
+        const xmult = gradientMultiplier * Math.max(dst_width / src.width, 1.0);
+        const ymult = gradientMultiplier * Math.max(dst_height / src.height, 1.0);
+        dst = gradientMagnitude(temp, dst_width, dst_height, xmult, ymult, false);
     } else if (haloMinimize) {
         dst = haloMinimizedResize(src.data, src.width, src.height, dst_width, dst_height, filter, smoothFilter, gradientFilter, gradientMultiplier);
     } else {
@@ -165,12 +163,12 @@ function parseSigmoidizationBeta(str) {
 
 function parseGradientMultiplier(str) {
     if (str === "")
-        return -1.0;
+        return 2.0;
 
     const mult = Number(str);
     if (mult !== mult || mult <= 0) {
         err.innerText += `warning: invalid gradient magnitude multiplier '${str}'\n`;
-        return -1.0;
+        return 2.0;
     }
 
     return mult;
@@ -180,45 +178,46 @@ function haloMinimizedResize(src, src_width, src_height, dst_width, dst_height, 
     const sharp = resize(src, src_width, src_height, dst_width, dst_height, sharpFilter);
     const smooth = resize(src, src_width, src_height, dst_width, dst_height, smoothFilter);
 
+    const xmult = Math.max(dst_width / src_width, 1.0);
+    const ymult = Math.max(dst_height / src_height, 1.0);
     let gradient;
     if (gradientFilter == sharpFilter) {
-        gradient = gradientMagnitude(sharp, dst_width, dst_height, multiplier);
+        gradient = gradientMagnitude(sharp, dst_width, dst_height, xmult, ymult);
     } else if (gradientFilter == smoothFilter) {
-        gradient = gradientMagnitude(smooth, dst_width, dst_height, multiplier);
+        gradient = gradientMagnitude(smooth, dst_width, dst_height, xmult, ymult);
     } else {
         const temp = resize(src, src_width, src_height, dst_width, dst_height, gradientFilter);
-        gradient = gradientMagnitude(temp, dst_width, dst_height, multiplier);
+        gradient = gradientMagnitude(temp, dst_width, dst_height, xmult, ymult);
     }
 
     const length = dst_width * dst_height << 2;
     for (let i = 0; i < length; i++) {
-        const c = gradient[i];
+        const c = multiplier * gradient[i];
         gradient[i] = c * sharp[i] + (1.0 - c) * smooth[i];
     }
 
     return gradient;
 }
 
-function gradientMagnitude(src, width, height, multiplier, alpha = true) {
+function gradientMagnitude(src, width, height, xmult, ymult, alpha = true) {
     const CDiffKernel = new Float64Array([0.5, 0, -0.5]);
 
     const Gx = convolve(src, width, height, CDiffKernel, null, 3, 3, 0.0, 0.0);
     const Gy = convolve(src, width, height, null, CDiffKernel, 3, 3, 0.0, 0.0);
 
+    xmult *= xmult;
+    ymult *= ymult;
     const length = width * height << 2;
     if (alpha) {
         for (let i = 0; i < length; i++)
-            Gx[i] = multiplier * Math.sqrt(Gx[i] * Gx[i] + Gy[i] * Gy[i]);
+            Gx[i] = Math.sqrt(xmult * Gx[i] * Gx[i] + ymult * Gy[i] * Gy[i]);
     } else {
-        let j = 0;
         for (let i = 0; i < length; i++) {
-            if (j == 3) {
+            if (i % 4 == 3) {
                 Gx[i] = 1.0;
-                j = 0;
                 continue;
             }
-            Gx[i] = multiplier * Math.sqrt(Gx[i] * Gx[i] + Gy[i] * Gy[i]);
-            j++;
+            Gx[i] = Math.sqrt(xmult * Gx[i] * Gx[i] + ymult * Gy[i] * Gy[i]);
         }
     }
 
