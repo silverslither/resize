@@ -24,6 +24,9 @@ typedef enum Filter {
     BSPLINE2I,
     BSPLINE3I,
     OMOMS3I,
+    OMOMS5I,
+    OMOMS7I,
+    OMOMS9I,
 } Filter;
 
 /**
@@ -94,7 +97,7 @@ double *reconstruct(const double *src, pdt src_width, pdt src_height, pdt dst_wi
  * \param nop Boolean flag for a no-op case.
  * \return Destination image in a 4-channel format, or null pointer if OOM.
  */
-double *reconstruct_iconvolve(const double *src, pdt src_width, pdt src_height, pdt dst_width, pdt dst_height, double (*filter)(double), double window, double norm, const double *L, pdt m, double c, bool nop);
+double *reconstruct_iconvolve_w3(const double *src, pdt src_width, pdt src_height, pdt dst_width, pdt dst_height, double (*filter)(double), double window, double norm, const double *L, pdt m, double c, bool nop);
 
 /**
  * \brief Wrapper for `sample`, `scale`, `reconstruct`, and `reconstruct_iconvolve`.
