@@ -82,6 +82,23 @@ double *convolve(const double *src, pdt width, pdt height, const double *h_kerne
 double *reconstruct(const double *src, pdt src_width, pdt src_height, pdt dst_width, pdt dst_height, double (*filter)(double), double window, double norm, bool nop);
 
 /**
+ * \brief Resize an image using a reconstruction filter and an inverse discrete convolution with bandwidth 2.
+ * \param src Source image in a 4-channel format.
+ * \param src_width Source image width.
+ * \param src_height Source image height.
+ * \param dst_width Destination image width.
+ * \param dst_height Destination image height.
+ * \param filter Reconstruction filter function.
+ * \param window Filter function window.
+ * \param norm Normalization constant.
+ * \param LU LU-decomposition matrix constants.
+ * \param m Number of matrix coefficients before convergence.
+ * \param nop Boolean flag for a no-op case.
+ * \return Destination image in a 4-channel format, or null pointer if OOM.
+ */
+double *reconstruct_iconvolve_b2(const double *src, pdt src_width, pdt src_height, pdt dst_width, pdt dst_height, double (*filter)(double), double window, double norm, const double *LU, pdt m, bool nop);
+
+/**
  * \brief Resize an image using a reconstruction filter and an inverse discrete convolution.
  * \param src Source image in a 4-channel format.
  * \param src_width Source image width.
@@ -91,13 +108,13 @@ double *reconstruct(const double *src, pdt src_width, pdt src_height, pdt dst_wi
  * \param filter Reconstruction filter function.
  * \param window Filter function window.
  * \param norm Normalization constant.
- * \param L Lower matrix coefficients.
- * \param m Number of lower matrix coefficients.
- * \param c Edge multiplier constant.
+ * \param LU LU-decomposition matrix constants.
+ * \param m Number of matrix coefficients before convergence.
+ * \param b Inverse discrete convolution bandwidth.
  * \param nop Boolean flag for a no-op case.
  * \return Destination image in a 4-channel format, or null pointer if OOM.
  */
-double *reconstruct_iconvolve_w3(const double *src, pdt src_width, pdt src_height, pdt dst_width, pdt dst_height, double (*filter)(double), double window, double norm, const double *L, pdt m, double c, bool nop);
+double *reconstruct_iconvolve(const double *src, pdt src_width, pdt src_height, pdt dst_width, pdt dst_height, double (*filter)(double), double window, double norm, const double *LU, pdt m, pdt b, bool nop);
 
 /**
  * \brief Wrapper for `sample`, `scale`, `reconstruct`, and `reconstruct_iconvolve`.

@@ -423,15 +423,16 @@ double *reconstruct(const double *src, pdt src_width, pdt src_height, pdt dst_wi
     }
 }
 
-static void h_iconvolve_w3_ip(double *img, pdt width, pdt height, const double *L, pdt m, double c) {
+static void h_iconvolve_b2_ip(double *img, pdt width, pdt height, const double *LU, pdt m) {
+    const double c = LU[m];
     pdt n = m - 1;
     if (m >= width)
         n = m = width - 1;
 
-    const double L_0 = L[0];
-    const double L_inf = L[m - 1];
+    const double L_0 = LU[0];
+    const double L_inf = LU[m - 1];
     const double L_inf_mul = L_inf * c;
-    const double L_inf_div = L[n] / c;
+    const double L_inf_div = LU[n] / c;
     const pdt f_adj = (width << 2) + 4;
     double *f = img + 4;
 
@@ -439,7 +440,7 @@ static void h_iconvolve_w3_ip(double *img, pdt width, pdt height, const double *
         pdt x;
 
         for (x = 1; x < m; x++, f += 4) {
-            const double L_x = L[x - 1];
+            const double L_x = LU[x - 1];
             f[0] -= L_x * f[-4];
             f[1] -= L_x * f[-3];
             f[2] -= L_x * f[-2];
@@ -467,7 +468,7 @@ static void h_iconvolve_w3_ip(double *img, pdt width, pdt height, const double *
         }
 
         for (; x > 0; x--, f -= 4) {
-            const double L_x = L[x];
+            const double L_x = LU[x];
             f[0] = L_x * (f[0] - f[4]);
             f[1] = L_x * (f[1] - f[5]);
             f[2] = L_x * (f[2] - f[6]);
@@ -483,15 +484,16 @@ static void h_iconvolve_w3_ip(double *img, pdt width, pdt height, const double *
     }
 }
 
-static void v_iconvolve_w3_ip(double *img, pdt width, pdt height, const double *L, pdt m, double c) {
+static void v_iconvolve_b2_ip(double *img, pdt width, pdt height, const double *LU, pdt m) {
+    const double c = LU[m];
     pdt n = m - 1;
     if (m >= height)
         n = m = height - 1;
 
-    const double L_0 = L[0];
-    const double L_inf = L[m - 1];
+    const double L_0 = LU[0];
+    const double L_inf = LU[m - 1];
     const double L_inf_mul = L_inf * c;
-    const double L_inf_div = L[n] / c;
+    const double L_inf_div = LU[n] / c;
     const pdt adj_width = width << 2;
     double *pf = img;
     double *f = pf + adj_width;
@@ -499,7 +501,7 @@ static void v_iconvolve_w3_ip(double *img, pdt width, pdt height, const double *
     pdt y;
 
     for (y = 1; y < m; y++) {
-        const double L_y = L[y - 1];
+        const double L_y = LU[y - 1];
         for (pdt x = 0; x < adj_width; x++, f++, pf++)
             f[0] -= L_y * pf[0];
     }
@@ -519,7 +521,7 @@ static void v_iconvolve_w3_ip(double *img, pdt width, pdt height, const double *
             f[0] = L_inf * (f[0] - pf[0]);
 
     for (; y > 0; y--) {
-        const double L_y = L[y];
+        const double L_y = LU[y];
         for (pdt x = 0; x < adj_width; x++, f--, pf--)
             f[0] = L_y * (f[0] - pf[0]);
     }
@@ -528,7 +530,7 @@ static void v_iconvolve_w3_ip(double *img, pdt width, pdt height, const double *
         f[0] = L_0 * (f[0] - c * pf[0]);
 }
 
-static double *h_reconstruct_iconvolve_w3(const double *src, pdt src_width, pdt height, pdt dst_width, double (*filter)(double), double window, double norm, const double *L, pdt m, double c) {
+static double *h_reconstruct_iconvolve_b2(const double *src, pdt src_width, pdt height, pdt dst_width, double (*filter)(double), double window, double norm, const double *L, pdt m) {
     if (dst_width > src_width) {
         if (src_width == 1)
             return h_reconstruct(src, src_width, height, dst_width, filter, window, 1.0);
@@ -536,7 +538,7 @@ static double *h_reconstruct_iconvolve_w3(const double *src, pdt src_width, pdt 
         double *temp = imgcpy(src, src_width, height);
         if (!temp)
             return NULL;
-        h_iconvolve_w3_ip(temp, src_width, height, L, m, c);
+        h_iconvolve_b2_ip(temp, src_width, height, L, m);
 
         double *ret = h_reconstruct(temp, src_width, height, dst_width, filter, window, norm);
         free(temp);
@@ -549,12 +551,12 @@ static double *h_reconstruct_iconvolve_w3(const double *src, pdt src_width, pdt 
         if (!ret)
             return NULL;
 
-        h_iconvolve_w3_ip(ret, dst_width, height, L, m, c);
+        h_iconvolve_b2_ip(ret, dst_width, height, L, m);
         return ret;
     }
 }
 
-static double *v_reconstruct_iconvolve_w3(const double *src, pdt width, pdt src_height, pdt dst_height, double (*filter)(double), double window, double norm, const double *L, pdt m, double c) {
+static double *v_reconstruct_iconvolve_b2(const double *src, pdt width, pdt src_height, pdt dst_height, double (*filter)(double), double window, double norm, const double *L, pdt m) {
     if (dst_height > src_height) {
         if (src_height == 1)
             return v_reconstruct(src, width, src_height, dst_height, filter, window, 1.0);
@@ -562,7 +564,7 @@ static double *v_reconstruct_iconvolve_w3(const double *src, pdt width, pdt src_
         double *temp = imgcpy(src, width, src_height);
         if (!temp)
             return NULL;
-        v_iconvolve_w3_ip(temp, width, src_height, L, m, c);
+        v_iconvolve_b2_ip(temp, width, src_height, L, m);
 
         double *ret = v_reconstruct(temp, width, src_height, dst_height, filter, window, norm);
         free(temp);
@@ -575,12 +577,12 @@ static double *v_reconstruct_iconvolve_w3(const double *src, pdt width, pdt src_
         if (!ret)
             return NULL;
 
-        v_iconvolve_w3_ip(ret, width, dst_height, L, m, c);
+        v_iconvolve_b2_ip(ret, width, dst_height, L, m);
         return ret;
     }
 }
 
-double *reconstruct_iconvolve_w3(const double *src, pdt src_width, pdt src_height, pdt dst_width, pdt dst_height, double (*filter)(double), double window, double norm, const double *L, pdt m, double c, bool nop) {
+double *reconstruct_iconvolve_b2(const double *src, pdt src_width, pdt src_height, pdt dst_width, pdt dst_height, double (*filter)(double), double window, double norm, const double *L, pdt m, bool nop) {
     if (src_width <= 0 || src_height <= 0 || dst_width <= 0 || dst_height <= 0)
         return NULL;
 
@@ -588,9 +590,9 @@ double *reconstruct_iconvolve_w3(const double *src, pdt src_width, pdt src_heigh
         if (dst_width == src_width) {
             if (dst_height == src_height)
                 return imgcpy(src, src_width, src_height);
-            return v_reconstruct_iconvolve_w3(src, src_width, src_height, dst_height, filter, window, norm, L, m, c);
+            return v_reconstruct_iconvolve_b2(src, src_width, src_height, dst_height, filter, window, norm, L, m);
         } else if (dst_height == src_height) {
-            return h_reconstruct_iconvolve_w3(src, src_width, src_height, dst_width, filter, window, norm, L, m, c);
+            return h_reconstruct_iconvolve_b2(src, src_width, src_height, dst_width, filter, window, norm, L, m);
         }
     }
 
@@ -598,19 +600,19 @@ double *reconstruct_iconvolve_w3(const double *src, pdt src_width, pdt src_heigh
     const pdt v_intermediate = dst_height * src_width;
 
     if (h_intermediate > v_intermediate) {
-        double *temp = v_reconstruct_iconvolve_w3(src, src_width, src_height, dst_height, filter, window, norm, L, m, c);
+        double *temp = v_reconstruct_iconvolve_b2(src, src_width, src_height, dst_height, filter, window, norm, L, m);
         if (!temp)
             return NULL;
 
-        double *ret = h_reconstruct_iconvolve_w3(temp, src_width, dst_height, dst_width, filter, window, norm, L, m, c);
+        double *ret = h_reconstruct_iconvolve_b2(temp, src_width, dst_height, dst_width, filter, window, norm, L, m);
         free(temp);
         return ret;
     } else {
-        double *temp = h_reconstruct_iconvolve_w3(src, src_width, src_height, dst_width, filter, window, norm, L, m, c);
+        double *temp = h_reconstruct_iconvolve_b2(src, src_width, src_height, dst_width, filter, window, norm, L, m);
         if (!temp)
             return NULL;
 
-        double *ret = v_reconstruct_iconvolve_w3(temp, dst_width, src_height, dst_height, filter, window, norm, L, m, c);
+        double *ret = v_reconstruct_iconvolve_b2(temp, dst_width, src_height, dst_height, filter, window, norm, L, m);
         free(temp);
         return ret;
     }
@@ -623,11 +625,12 @@ static void h_filter_ip(double *img, pdt width, pdt height, const pdt *bounds, c
 
     const pdt dst_change = reverse ? -4 : 4;
     pdt src_offset = 0;
-    for (pdt y = 0; y < height; y++, src_offset += adj_width) {
+    pdt dst_offset = reverse ? adj_width - 4 : 0;
+    for (pdt y = 0; y < height; y++, src_offset += adj_width, dst_offset += adj_width) {
         coeffs_ptr = coeffs;
         bounds_ptr = bounds;
 
-        pdt dst_pixel = reverse ? src_offset + adj_width - 4 : src_offset;
+        pdt dst_pixel = dst_offset;
         for (pdt x = 0; x < width; x++, bounds_ptr += 2, coeffs_ptr += support, dst_pixel += dst_change) {
             const pdt min_x = bounds_ptr[0];
             const pdt max_x = bounds_ptr[1];
@@ -671,12 +674,12 @@ static void v_filter_ip(double *img, pdt width, pdt height, const pdt *bounds, c
     }
 }
 
-static bool gen_iconvolve_filters(pdt **_forward_bounds, double **_forward_coeffs, pdt **_backward_bounds, double **_backward_coeffs, pdt len, const double *LU, pdt m, pdt bandwidth) {
+static bool gen_iconvolve_filters(pdt **_forward_bounds, double **_forward_coeffs, pdt **_backward_bounds, double **_backward_coeffs, pdt len, const double *LU, pdt m, pdt b) {
 #define L(a, b) LU[offset * (a) + (b)]
-    const double *U = LU + (bandwidth - 1) * (m + bandwidth - 1);
-    const double *C = U + (bandwidth - 2) * (bandwidth - 1);
-    const pdt cutoff = len - (bandwidth - 1);
-    const pdt offset = m + (bandwidth - 1);
+    const double *U = LU + (b - 1) * (m + b - 1);
+    const double *C = U + (b - 2) * (b - 1);
+    const pdt cutoff = len - (b - 1);
+    const pdt offset = m + (b - 1);
 
     pdt *forward_bounds = malloc(2 * len * sizeof(*forward_bounds));
     if (!forward_bounds)
@@ -687,14 +690,14 @@ static bool gen_iconvolve_filters(pdt **_forward_bounds, double **_forward_coeff
         return true;
     }
 
-    pdt support = bandwidth - 1;
+    pdt support = b - 1;
     double *forward_coeffs = malloc(support * len * sizeof(*forward_coeffs));
     if (!forward_coeffs) {
         free(forward_bounds);
         free(backward_bounds);
         return true;
     }
-    double *backward_coeffs = malloc(bandwidth * len * sizeof(*backward_coeffs));
+    double *backward_coeffs = malloc(b * len * sizeof(*backward_coeffs));
     if (!backward_bounds) {
         free(forward_bounds);
         free(backward_bounds);
@@ -744,7 +747,7 @@ static bool gen_iconvolve_filters(pdt **_forward_bounds, double **_forward_coeff
             forward_coeffs[support - 1 - i] = -L(i + 1, z - len);
     }
 
-    support = bandwidth;
+    support = b;
 
     for (z = len - 1; z >= cutoff; z--, backward_bounds += 2, backward_coeffs += support) {
         const double M = U[-support] / C[(len - 1) - z];
@@ -771,7 +774,7 @@ static bool gen_iconvolve_filters(pdt **_forward_bounds, double **_forward_coeff
         backward_coeffs[support - 1] = -M;
     }
 
-    for (; z >= bandwidth - 1; z--, backward_bounds += 2, backward_coeffs += support) {
+    for (; z >= b - 1; z--, backward_bounds += 2, backward_coeffs += support) {
         const double M = U[z - offset];
         const pdt min_z = z;
         const pdt max_z = z + support - 1;
@@ -793,7 +796,7 @@ static bool gen_iconvolve_filters(pdt **_forward_bounds, double **_forward_coeff
 
         backward_coeffs[0] = M - 1.0;
         for (pdt s = min_z + 1, i = 1; s < max_z; s++, i++)
-            backward_coeffs[i] = -M * U[(i - 1) * (bandwidth - 1) + z];
+            backward_coeffs[i] = -M * U[(i - 1) * (b - 1) + z];
         backward_coeffs[support - 1] = -M * C[z];
     }
 
@@ -801,19 +804,19 @@ static bool gen_iconvolve_filters(pdt **_forward_bounds, double **_forward_coeff
     return false;
 }
 
-static bool h_iconvolve_ip(double *img, pdt width, pdt height, const double *LU, pdt m, pdt bandwidth) {
+static bool h_iconvolve_ip(double *img, pdt width, pdt height, const double *LU, pdt m, pdt b) {
     pdt *forward_bounds;
     pdt *backward_bounds;
     double *forward_coeffs;
     double *backward_coeffs;
-    if (gen_iconvolve_filters(&forward_bounds, &forward_coeffs, &backward_bounds, &backward_coeffs, width, LU, m, bandwidth))
+    if (gen_iconvolve_filters(&forward_bounds, &forward_coeffs, &backward_bounds, &backward_coeffs, width, LU, m, b))
         return true;
 
     for (pdt i = 0; i < height; i++) {
         printf("FBOUNDS %ld %ld\n", forward_bounds[2 * i], forward_bounds[2 * i + 1]);
         printf("FVALUES ");
-        for (pdt j = 0; j < bandwidth - 1; j++) {
-            printf("%.12lf ", forward_coeffs[(bandwidth - 1) * i + j]);
+        for (pdt j = 0; j < b - 1; j++) {
+            printf("%.12lg ", forward_coeffs[(b - 1) * i + j]);
         }
         printf("\n");
     }
@@ -821,14 +824,14 @@ static bool h_iconvolve_ip(double *img, pdt width, pdt height, const double *LU,
     for (pdt i = 0; i < height; i++) {
         printf("BBOUNDS %ld %ld\n", backward_bounds[2 * i], backward_bounds[2 * i + 1]);
         printf("BVALUES ");
-        for (pdt j = 0; j < bandwidth; j++) {
-            printf("%.12lf ", backward_coeffs[bandwidth * i + j]);
+        for (pdt j = 0; j < b; j++) {
+            printf("%.12lg ", backward_coeffs[b * i + j]);
         }
         printf("\n");
     }
 
-    h_filter_ip(img, width, height, forward_bounds, forward_coeffs, bandwidth - 1, false);
-    h_filter_ip(img, width, height, backward_bounds, backward_coeffs, bandwidth, true);
+    h_filter_ip(img, width, height, forward_bounds, forward_coeffs, b - 1, false);
+    h_filter_ip(img, width, height, backward_bounds, backward_coeffs, b, true);
 
     free(forward_bounds);
     free(forward_coeffs);
@@ -837,16 +840,16 @@ static bool h_iconvolve_ip(double *img, pdt width, pdt height, const double *LU,
     return false;
 }
 
-static bool v_iconvolve_ip(double *img, pdt width, pdt height, const double *LU, pdt m, pdt bandwidth) {
+static bool v_iconvolve_ip(double *img, pdt width, pdt height, const double *LU, pdt m, pdt b) {
     pdt *forward_bounds;
     pdt *backward_bounds;
     double *forward_coeffs;
     double *backward_coeffs;
-    if (gen_iconvolve_filters(&forward_bounds, &forward_coeffs, &backward_bounds, &backward_coeffs, height, LU, m, bandwidth))
+    if (gen_iconvolve_filters(&forward_bounds, &forward_coeffs, &backward_bounds, &backward_coeffs, height, LU, m, b))
         return true;
 
-    v_filter_ip(img, width, height, forward_bounds, forward_coeffs, bandwidth - 1, false);
-    v_filter_ip(img, width, height, backward_bounds, backward_coeffs, bandwidth, true);
+    v_filter_ip(img, width, height, forward_bounds, forward_coeffs, b - 1, false);
+    v_filter_ip(img, width, height, backward_bounds, backward_coeffs, b, true);
 
     free(forward_bounds);
     free(forward_coeffs);
@@ -855,7 +858,7 @@ static bool v_iconvolve_ip(double *img, pdt width, pdt height, const double *LU,
     return false;
 }
 
-static double *h_reconstruct_iconvolve(const double *src, pdt src_width, pdt height, pdt dst_width, double (*filter)(double), double window, double norm, const double *LU, pdt m, pdt bandwidth) {
+static double *h_reconstruct_iconvolve(const double *src, pdt src_width, pdt height, pdt dst_width, double (*filter)(double), double window, double norm, const double *LU, pdt m, pdt b) {
     if (dst_width > src_width) {
         if (src_width == 1)
             return h_reconstruct(src, src_width, height, dst_width, filter, window, 1.0);
@@ -863,7 +866,7 @@ static double *h_reconstruct_iconvolve(const double *src, pdt src_width, pdt hei
         double *temp = imgcpy(src, src_width, height);
         if (!temp)
             return NULL;
-        h_iconvolve_ip(temp, src_width, height, LU, m, bandwidth);
+        h_iconvolve_ip(temp, src_width, height, LU, m, b);
 
         double *ret = h_reconstruct(temp, src_width, height, dst_width, filter, window, norm);
         free(temp);
@@ -876,12 +879,12 @@ static double *h_reconstruct_iconvolve(const double *src, pdt src_width, pdt hei
         if (!ret)
             return NULL;
 
-        h_iconvolve_ip(ret, dst_width, height, LU, m, bandwidth);
+        h_iconvolve_ip(ret, dst_width, height, LU, m, b);
         return ret;
     }
 }
 
-static double *v_reconstruct_iconvolve(const double *src, pdt width, pdt src_height, pdt dst_height, double (*filter)(double), double window, double norm, const double *LU, pdt m, pdt bandwidth) {
+static double *v_reconstruct_iconvolve(const double *src, pdt width, pdt src_height, pdt dst_height, double (*filter)(double), double window, double norm, const double *LU, pdt m, pdt b) {
     if (dst_height > src_height) {
         if (src_height == 1)
             return v_reconstruct(src, width, src_height, dst_height, filter, window, 1.0);
@@ -889,7 +892,7 @@ static double *v_reconstruct_iconvolve(const double *src, pdt width, pdt src_hei
         double *temp = imgcpy(src, width, src_height);
         if (!temp)
             return NULL;
-        v_iconvolve_ip(temp, width, src_height, LU, m, bandwidth);
+        v_iconvolve_ip(temp, width, src_height, LU, m, b);
 
         double *ret = v_reconstruct(temp, width, src_height, dst_height, filter, window, norm);
         free(temp);
@@ -902,12 +905,12 @@ static double *v_reconstruct_iconvolve(const double *src, pdt width, pdt src_hei
         if (!ret)
             return NULL;
 
-        v_iconvolve_ip(ret, width, dst_height, LU, m, bandwidth);
+        v_iconvolve_ip(ret, width, dst_height, LU, m, b);
         return ret;
     }
 }
 
-double *reconstruct_iconvolve(const double *src, pdt src_width, pdt src_height, pdt dst_width, pdt dst_height, double (*filter)(double), double window, double norm, const double *LU, pdt m, pdt bandwidth, bool nop) {
+double *reconstruct_iconvolve(const double *src, pdt src_width, pdt src_height, pdt dst_width, pdt dst_height, double (*filter)(double), double window, double norm, const double *LU, pdt m, pdt b, bool nop) {
     if (src_width <= 0 || src_height <= 0 || dst_width <= 0 || dst_height <= 0)
         return NULL;
 
@@ -915,9 +918,9 @@ double *reconstruct_iconvolve(const double *src, pdt src_width, pdt src_height, 
         if (dst_width == src_width) {
             if (dst_height == src_height)
                 return imgcpy(src, src_width, src_height);
-            return v_reconstruct_iconvolve(src, src_width, src_height, dst_height, filter, window, norm, LU, m, bandwidth);
+            return v_reconstruct_iconvolve(src, src_width, src_height, dst_height, filter, window, norm, LU, m, b);
         } else if (dst_height == src_height) {
-            return h_reconstruct_iconvolve(src, src_width, src_height, dst_width, filter, window, norm, LU, m, bandwidth);
+            return h_reconstruct_iconvolve(src, src_width, src_height, dst_width, filter, window, norm, LU, m, b);
         }
     }
 
@@ -925,22 +928,22 @@ double *reconstruct_iconvolve(const double *src, pdt src_width, pdt src_height, 
     const pdt v_intermediate = dst_height * src_width;
 
     if (h_intermediate > v_intermediate) {
-        double *temp = v_reconstruct_iconvolve(src, src_width, src_height, dst_height, filter, window, norm, LU, m, bandwidth);
+        double *temp = v_reconstruct_iconvolve(src, src_width, src_height, dst_height, filter, window, norm, LU, m, b);
         if (!temp)
             return NULL;
 
-        double *ret = h_reconstruct_iconvolve(temp, src_width, dst_height, dst_width, filter, window, norm, LU, m, bandwidth);
+        double *ret = h_reconstruct_iconvolve(temp, src_width, dst_height, dst_width, filter, window, norm, LU, m, b);
         free(temp);
         return ret;
     } else {
-        double *temp = h_reconstruct_iconvolve(src, src_width, src_height, dst_width, filter, window, norm, LU, m, bandwidth);
+        double *temp = h_reconstruct_iconvolve(src, src_width, src_height, dst_width, filter, window, norm, LU, m, b);
         if (!temp)
             return NULL;
 
-        double *ret = v_reconstruct_iconvolve(temp, dst_width, src_height, dst_height, filter, window, norm, LU, m, bandwidth);
+        double *ret = v_reconstruct_iconvolve(temp, dst_width, src_height, dst_height, filter, window, norm, LU, m, b);
 
         for (pdt i = 0; i < dst_width * dst_height << 2; i++)
-            printf("%.12lf ", 255 * ret[i]);
+            printf("%.12lg ", 255.0 * ret[i]);
 
         free(temp);
         return ret;
@@ -973,11 +976,11 @@ double *resize(const double *src, pdt src_width, pdt src_height, pdt dst_width, 
     case HAMMING8:
         return reconstruct(src, src_width, src_height, dst_width, dst_height, Hamming8, 8.0, 1.0, true);
     case BSPLINE2I:
-        return reconstruct_iconvolve_w3(src, src_width, src_height, dst_width, dst_height, BSpline2, 1.5, 8.0, L_bspline2i, 11, 1.1428571428571428, true);
+        return reconstruct_iconvolve_b2(src, src_width, src_height, dst_width, dst_height, BSpline2, 1.5, 8.0, LU_bspline2i, 11, false);
     case BSPLINE3I:
-        return reconstruct_iconvolve_w3(src, src_width, src_height, dst_width, dst_height, BSpline3, 2.0, 6.0, L_bspline3i, 14, 1.2, true);
+        return reconstruct_iconvolve_b2(src, src_width, src_height, dst_width, dst_height, BSpline3, 2.0, 6.0, LU_bspline3i, 14, false);
     case OMOMS3I:
-        return reconstruct_iconvolve_w3(src, src_width, src_height, dst_width, dst_height, OMOMS3, 2.0, 5.25, L_omoms3, 18, 1.2352941176470589, true);
+        return reconstruct_iconvolve_b2(src, src_width, src_height, dst_width, dst_height, OMOMS3, 2.0, 5.25, LU_omoms3, 18, false);
     case OMOMS5I:
         return reconstruct_iconvolve(src, src_width, src_height, dst_width, dst_height, OMOMS5, 3.0, 74.01869158878505, LU_omoms5, 27, 3, false);
     case OMOMS7I:

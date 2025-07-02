@@ -21,10 +21,10 @@ double OMOMS5(double x);
 double OMOMS7(double x);
 double OMOMS9(double x);
 
-extern double L_bspline2i[11];
-extern double L_bspline3i[14];
+extern double LU_bspline2i[12];
+extern double LU_bspline3i[15];
 
-extern double L_omoms3[18];
+extern double LU_omoms3[19];
 extern double LU_omoms5[62];
 extern double LU_omoms7[126];
 extern double LU_omoms9[212];
