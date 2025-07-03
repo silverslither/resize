@@ -131,9 +131,8 @@ Filter parseFilter(char *str) {
         "BSPLINE2I",
         "BSPLINE3I",
         "OMOMS3I",
-        "OMOMS5I",
         "OMOMS7I",
-        "OMOMS9I",
+        "OMOMS11I",
     };
     static int len = sizeof(filters) / 20;
 

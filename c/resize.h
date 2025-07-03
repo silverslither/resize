@@ -24,9 +24,8 @@ typedef enum Filter {
     BSPLINE2I,
     BSPLINE3I,
     OMOMS3I,
-    OMOMS5I,
     OMOMS7I,
-    OMOMS9I,
+    OMOMS11I,
 } Filter;
 
 /**
@@ -110,9 +109,9 @@ double *reconstruct_iconvolve_b2(const double *src, pdt src_width, pdt src_heigh
  * \param norm Normalization constant.
  * \param LU LU-decomposition matrix constants.
  * \param m Number of matrix coefficients before convergence.
- * \param b Inverse discrete convolution bandwidth.
+ * \param b Inverse discrete convolution bandwidth. Note that the domain in which the inverse convolution is performed must have each dimension be at least 2 * bandwidth - 1.
  * \param nop Boolean flag for a no-op case.
- * \return Destination image in a 4-channel format, or null pointer if OOM.
+ * \return Destination image in a 4-channel format, or null pointer if OOM or iconvolve error.
  */
 double *reconstruct_iconvolve(const double *src, pdt src_width, pdt src_height, pdt dst_width, pdt dst_height, double (*filter)(double), double window, double norm, const double *LU, pdt m, pdt b, bool nop);
 
@@ -124,7 +123,7 @@ double *reconstruct_iconvolve(const double *src, pdt src_width, pdt src_height, 
  * \param dst_width Destination image width.
  * \param dst_height Destination image height.
  * \param filter Resizing method (filter) to be used. Defaults to Mitchell-Netravali.
- * \return Destination image in a 4-channel format, or null pointer if OOM.
+ * \return Destination image in a 4-channel format, or null pointer if OOM or iconvolve error.
  */
 double *resize(const double *src, pdt src_width, pdt src_height, pdt dst_width, pdt dst_height, Filter filter);
 
