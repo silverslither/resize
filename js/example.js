@@ -54,7 +54,7 @@ async function main(file) {
     let smoothFilter = parseFilter(smoothFilterName.value);
     let gradientFilter = parseFilter(gradientFilterName.value);
     const haloMinimize = smoothFilter !== Filter.DEFAULT;
-    let gradientMultiplier = parseGradientMultiplier(gmultiplier.value);
+    const gradientMultiplier = parseGradientMultiplier(gmultiplier.value);
     const rawGradient = rawGradientBox.checked;
     const linearize = linearizeBox.checked;
     const sigParams = parseSigmoidizationBeta(beta.value);

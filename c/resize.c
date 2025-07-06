@@ -930,7 +930,6 @@ double *reconstruct_iconvolve(const double *src, pdt src_width, pdt src_height, 
             return NULL;
 
         double *ret = v_reconstruct_iconvolve(temp, dst_width, src_height, dst_height, filter, window, norm, LU, m, b);
-
         free(temp);
         return ret;
     }
