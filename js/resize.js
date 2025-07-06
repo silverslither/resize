@@ -520,7 +520,6 @@ export function reconstruct_iconvolve_b2(src, src_width, src_height, dst_width, 
 }
 
 function h_filter_ip(img, width, height, bounds, coeffs, support, reverse) {
-    console.log("h_filter_ip", arguments);
     const adj_width = width * 4;
     let bounds_ptr;
     let coeffs_ptr;
@@ -558,7 +557,6 @@ function h_filter_ip(img, width, height, bounds, coeffs, support, reverse) {
 }
 
 function v_filter_ip(img, width, height, bounds, coeffs, support, reverse) {
-    console.log("v_filter_ip", arguments);
     const adj_width = width * 4;
     let bounds_ptr = 0;
     let coeffs_ptr = 0;
@@ -695,7 +693,6 @@ function v_iconvolve_ip(img, width, height, LU, m, b) {
 }
 
 function h_reconstruct_iconvolve(src, src_width, height, dst_width, filter, window, norm, LU, m, b) {
-    console.log(arguments);
     if (src == null)
         return null;
 
@@ -719,7 +716,6 @@ function h_reconstruct_iconvolve(src, src_width, height, dst_width, filter, wind
 }
 
 function v_reconstruct_iconvolve(src, width, src_height, dst_height, filter, window, norm, LU, m, b) {
-    console.log(arguments);
     if (src == null)
         return null;
 
