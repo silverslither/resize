@@ -5,7 +5,10 @@ extern "C" {
 #include "resize.h"
 }
 
+#include <algorithm>
 #include <cctype>
+#include <cfenv>
+#include <chrono>
 #include <climits>
 #include <cmath>
 #include <cstdio>
@@ -43,6 +46,8 @@ extern "C" {
 #include "include/fpng.h"
 #include "include/wuffs-v0.4.c"
 
+typedef uint8_t u8;
+
 class RGBA_NonPremul_DecodeImageCallbacks : public wuffs_aux::DecodeImageCallbacks {
   private:
     wuffs_base__pixel_format SelectPixfmt(const wuffs_base__image_config &image_config) override {
@@ -59,9 +64,9 @@ class RGBA_NonPremul_DecodeImageCallbacks : public wuffs_aux::DecodeImageCallbac
     }                                 \
     static_assert(true, "")
 
-static double *u8_to_f64(const uint8_t *arr, size_t len, bool linearize, SigmoidizationParams *params) {
-    double *out = static_cast<double *>(malloc(len << 3));
-    for (size_t i = 0; i < len; i++) {
+static double *u8_to_f64(const u8 *arr, pdt len, bool linearize, SigmoidizationParams *params) {
+    double *out = static_cast<double *>(malloc(len * sizeof(*out)));
+    for (pdt i = 0; i < len; i++) {
         double temp = 0.00392156862745098 * static_cast<double>(arr[i]);
         if (i % 4 != 3) {
             if (linearize)
@@ -74,9 +79,10 @@ static double *u8_to_f64(const uint8_t *arr, size_t len, bool linearize, Sigmoid
     return out;
 }
 
-static uint8_t *f64_to_u8(const double *arr, size_t len, bool linearize, SigmoidizationParams *params) {
-    uint8_t *out = static_cast<uint8_t *>(malloc(len));
-    for (size_t i = 0; i < len; i++) {
+static u8 *f64_to_u8(double *arr, pdt len, bool linearize, SigmoidizationParams *params) {
+    u8 *out = static_cast<u8 *>(malloc(len * sizeof(*out)));
+    fesetround(FE_TONEAREST);
+    for (pdt i = 0; i < len; i++) {
         double temp = arr[i];
         if (i % 4 != 3) {
             if (params)
@@ -84,14 +90,13 @@ static uint8_t *f64_to_u8(const double *arr, size_t len, bool linearize, Sigmoid
             if (linearize)
                 temp = srgb_encode(temp);
         }
-        temp = temp > 0.0 ? temp : 0.0;
-        temp = temp < 1.0 ? temp : 1.0;
-        out[i] = static_cast<uint8_t>(__builtin_roundeven(255.0 * temp));
+        temp = std::clamp(temp, 0.0, 1.0);
+        out[i] = static_cast<u8>(nearbyint(255.0 * temp));
     }
     return out;
 }
 
-int32_t parseDimension(char *str, unsigned src_dimension) {
+pdt parseDimension(char *str, unsigned src_dimension) {
     int len = strlen(str);
     double num;
     int pos;
@@ -111,7 +116,7 @@ int32_t parseDimension(char *str, unsigned src_dimension) {
     if (num <= 0.5 || num >= INT_MAX + 0.5)
         return -1;
 
-    return static_cast<int32_t>(__builtin_roundeven(num));
+    return static_cast<pdt>(__builtin_roundeven(num));
 }
 
 Filter parseFilter(char *str) {
@@ -259,7 +264,7 @@ double *haloMinimizedResize(const double *src, pdt src_width, pdt src_height, pd
 }
 
 int main(int argc, char **argv) {
-    assert(argc >= 5, "usage: resize <input> <width> <height> <output> [-f filter] [-h smooth_filter] [-e gradient_filter] [-m gradient_multiplier] [-r] [-l] [-s sigmoidization_contrast]\n");
+    assert(argc >= 5, "usage: resize <input> <width> <height> <output> [-f filter] [-h smooth_filter] [-e gradient_filter] [-m gradient_multiplier] [-r] [-l] [-s sigmoidization_contrast] [-v]\n");
 
     // default options
     Filter filter = DEFAULT;
@@ -271,6 +276,7 @@ int main(int argc, char **argv) {
     bool linearize = false;
     SigmoidizationParams *sigParamsPtr = nullptr;
     SigmoidizationParams _sigParams;
+    bool verbose = false;
 
     if (argc == 5)
         goto no_options;
@@ -327,12 +333,19 @@ int main(int argc, char **argv) {
             }
             sigParamsPtr = parseSigmoidizationBeta(argv[i], &_sigParams);
             break;
+        case 'v':
+            verbose = true;
+            break;
         default:
             goto invalid;
         }
     }
 
 no_options:
+    auto clock = std::chrono::steady_clock();
+    auto start = clock.now();
+    auto last = start;
+
     // input
     FILE *input_file = fopen(argv[1], "rb");
     assert(input_file, "error: failed to open '%s' for reading\n", argv[1]);
@@ -343,16 +356,16 @@ no_options:
     assert(result.error_message.empty(), "error: wuffs '%s'\n", result.error_message.c_str());
     fclose(input_file);
 
-    uint32_t src_width = result.pixbuf.pixcfg.width();
-    uint32_t src_height = result.pixbuf.pixcfg.height();
-    uint8_t *input_u8 = result.pixbuf.plane(0).ptr;
-    size_t area = (static_cast<size_t>(src_width) * static_cast<size_t>(src_height)) << 2;
+    auto src_width = result.pixbuf.pixcfg.width();
+    auto src_height = result.pixbuf.pixcfg.height();
+    u8 *input_u8 = result.pixbuf.plane(0).ptr;
+    auto area = (static_cast<pdt>(src_width) * src_height) << 2;
 
     // dimensions
-    int32_t dst_width = parseDimension(argv[2], src_width);
+    auto dst_width = parseDimension(argv[2], src_width);
     assert(dst_width != -1, "error: invalid width '%s'\n", argv[2]);
 
-    int32_t dst_height = parseDimension(argv[3], src_height);
+    auto dst_height = parseDimension(argv[3], src_height);
     assert(dst_height != -1, "error: invalid height '%s'\n", argv[3]);
 
     if (dst_width > 65536 || dst_height > 65536) {
@@ -361,9 +374,21 @@ no_options:
             return 0;
     }
 
+    if (verbose) {
+        auto current = clock.now();
+        printf("done parsing and decoding input in %.3lf ms\n", 1e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(current - last).count());
+        last = current;
+    }
+
     // resize
     double *input_f64 = u8_to_f64(input_u8, area, linearize, sigParamsPtr);
     mul_alpha(input_f64, area);
+
+    if (verbose) {
+        auto current = clock.now();
+        printf("done forward format conversion and colourspace correction in %.3lf ms\n", 1e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(current - last).count());
+        last = current;
+    }
 
     if (smoothFilter == DEFAULT)
         smoothFilter = filter;
@@ -386,16 +411,33 @@ no_options:
     assert(output_f64, "error: out of memory");
     free(input_f64);
 
-    area = (static_cast<size_t>(dst_width) * static_cast<size_t>(dst_height)) << 2;
-    div_alpha(output_f64, area);
+    if (verbose) {
+        auto current = clock.now();
+        printf("done resize operation in %.3lf ms\n", 1e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(current - last).count());
+        last = current;
+    }
 
-    uint8_t *output_u8 = f64_to_u8(output_f64, area, linearize, sigParamsPtr);
+    area = (static_cast<pdt>(dst_width) * dst_height) << 2;
+    div_alpha(output_f64, area);
+    u8 *output_u8 = f64_to_u8(output_f64, area, linearize, sigParamsPtr);
     free(output_f64);
+
+    if (verbose) {
+        auto current = clock.now();
+        printf("done backward format conversion and colourspace correction in %.3lf ms\n", 1e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(current - last).count());
+        last = current;
+    }
 
     // output
     fpng::fpng_init();
     assert(fpng::fpng_encode_image_to_file(argv[4], output_u8, dst_width, dst_height, 4, fpng::FPNG_ENCODE_SLOWER), "error: failed to write to '%s'\n", argv[4]);
     free(output_u8);
+
+    if (verbose) {
+        auto current = clock.now();
+        printf("done writing output in %.3lf ms\n", 1e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(current - last).count());
+        printf("\nprogram finished in %.3lf ms\n", 1e-6 * std::chrono::duration_cast<std::chrono::nanoseconds>(current - start).count());
+    }
 
     return 0;
 }

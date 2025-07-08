@@ -14,8 +14,8 @@ set -e
 test -z $CC && CC=clang
 test -z $CXX && CXX=clang++
 
-CFLAGS="-std=c99 -c -O3 -march=native -fno-strict-aliasing -Wall -Wextra -Wpedantic -Wshadow -Wfloat-conversion -Wunused-result"
-CXXFLAGS="-std=c++11 -c -O3 -march=native -fno-strict-aliasing -Wall -Wextra -Wpedantic -Wshadow -Wfloat-conversion"
+CFLAGS="-std=c99 -c -O3 -march=native -fno-strict-aliasing -Wall -Wextra -Wpedantic -Wshadow -Wfloat-conversion"
+CXXFLAGS="-std=c++17 -c -O3 -march=native -fno-strict-aliasing -Wall -Wextra -Wpedantic -Wshadow -Wfloat-conversion"
 
 $CC $CFLAGS filters.c
 $CC $CFLAGS resize.c
