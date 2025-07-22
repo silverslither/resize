@@ -2,6 +2,24 @@
 
 import * as Filters from "./filters.js";
 
+if (typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope) {
+    onmessage = (event) => {
+        let data = event.data[0];
+        if (Array.isArray(data) && data.length === 2 && typeof data[0] === "string" && data[1] instanceof ArrayBuffer)
+            data = new self[data[0]](data[1]);
+        if (!(data instanceof Object.getPrototypeOf(Int8Array)))
+            postMessage(null);
+
+        const args = event.data.slice(1);
+        const result = resize(data, ...args);
+
+        if (result == null)
+            postMessage(null);
+        else 
+            postMessage([Object.getPrototypeOf(result).constructor.name, result.buffer], [result.buffer]);
+    };
+}
+
 /**
  * Resample an image using nearest neighbor interpolation.
  * @param {TypedArray} src Source image in a 4-channel format.

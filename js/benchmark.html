@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>resize benchmark</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pica/9.0.1/pica.min.js"></script>
+    <script type="module" src="benchmark.js"></script>
+</head>
+
+<body>
+    <input id="input" type="file"><br/>
+    width <input id="width" type="text"><br/>
+    height <input id="height" type="text"><br/>
+    pica filter <input id="pica-filter" type="text"><br/>
+    resize filter <input id="resize-filter" type="text"><br/>
+    <button type="button">Submit</button><br/>
+    <span id="err" style="color:red"></span>
+</body>
+
+</html>

@@ -224,17 +224,15 @@ function gradientMagnitude(src, width, height, xmult, ymult, alpha = true) {
     return Gx;
 }
 
-async function decode(file) {
+function decode(file) {
     return new Promise((resolve) => {
         const reader = new FileReader();
         reader.addEventListener("load", async () => {
             const image = new Image();
             image.src = reader.result;
             await image.decode();
-            const canvas = document.createElement("canvas");
+            const canvas = new OffscreenCanvas(image.naturalWidth, image.naturalHeight);
             const context = canvas.getContext("2d");
-            canvas.width = image.naturalWidth;
-            canvas.height = image.naturalHeight;
             context.drawImage(image, 0, 0);
             const data = context.getImageData(0, 0, image.naturalWidth, image.naturalHeight);
             resolve({ data: data.data, width: data.width, height: data.height });
@@ -243,23 +241,14 @@ async function decode(file) {
     });
 }
 
-async function encode(dataArray, width, height) {
-    return new Promise((resolve, reject) => {
-        if (!(dataArray instanceof Uint8ClampedArray))
-            dataArray = new Uint8ClampedArray(dataArray);
-        const data = new ImageData(dataArray, width, height);
-        const canvas = document.createElement("canvas");
-        const context = canvas.getContext("2d");
-        canvas.width = width;
-        canvas.height = height;
-        context.putImageData(data, 0, 0);
-        canvas.toBlob((blob) => {
-            if (blob == null)
-                reject();
-            else
-                resolve(blob);
-        });
-    });
+function encode(dataArray, width, height) {
+    if (!(dataArray instanceof Uint8ClampedArray))
+        dataArray = new Uint8ClampedArray(dataArray);
+    const data = new ImageData(dataArray, width, height);
+    const canvas = new OffscreenCanvas(width, height);
+    const context = canvas.getContext("2d");
+    context.putImageData(data, 0, 0);
+    return canvas.convertToBlob();
 }
 
 function writeFileSync(name, blob) {
