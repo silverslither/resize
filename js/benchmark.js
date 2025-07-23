@@ -1,8 +1,8 @@
 // Copyright (c) 2024-2025 silverslither.
 
-import { Filter } from "./resize.js";
+import { Filter, Resizer } from "./resize.js";
 const pica = window.pica();
-const resize = new Worker("resize.js", { type: "module" });
+const resizer = new Resizer();
 
 let input, width, height, picaFilter, resizeFilter, submit, err;
 let lock = false, start = NaN;
@@ -59,10 +59,7 @@ async function main(file) {
     err.innerText += `pica: ${time()} ms\n`;
 
     time();
-    await new Promise((resolve) => {
-        resize.onmessage = (event) => resolve(event.data);
-        resize.postMessage([[Object.getPrototypeOf(src.data).constructor.name, src.data.buffer], src.width, src.height, dst_width, dst_height, parseFilter(resizeFilter.value)], [src.data.buffer]);
-    });
+    await resizer.resize(src.data, src.width, src.height, dst_width, dst_height, parseFilter(resizeFilter.value));
     err.innerText += `resize: ${time()} ms\n`;
 }
 

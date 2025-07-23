@@ -2,24 +2,6 @@
 
 import * as Filters from "./filters.js";
 
-if (typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope) {
-    onmessage = (event) => {
-        let data = event.data[0];
-        if (Array.isArray(data) && data.length === 2 && typeof data[0] === "string" && data[1] instanceof ArrayBuffer)
-            data = new self[data[0]](data[1]);
-        if (!(data instanceof Object.getPrototypeOf(Int8Array)))
-            postMessage(null);
-
-        const args = event.data.slice(1);
-        const result = resize(data, ...args);
-
-        if (result == null)
-            postMessage(null);
-        else 
-            postMessage([Object.getPrototypeOf(result).constructor.name, result.buffer], [result.buffer]);
-    };
-}
-
 /**
  * Resample an image using nearest neighbor interpolation.
  * @param {TypedArray} src Source image in a 4-channel format.
@@ -829,7 +811,7 @@ export const Filter = {
  * @param {number} dst_width Destination image width.
  * @param {number} dst_height Destination image height.
  * @param {Filter} filter Resizing method (filter) to be used. Defaults to Mitchell-Netravali.
- * @returns {TypedArray | Float64Array | null} Destination image in a 4-channel format, or null if iconvolve error. Returns the same type as source image if `filter` is `NEAREST`, otherwise returns Float64Array.
+ * @returns {TypedArray | null} Destination image in a 4-channel format, or null if iconvolve error. Returns the same type as source image if `filter` is `NEAREST`, otherwise returns Float64Array.
  */
 export function resize(src, src_width, src_height, dst_width, dst_height, filter) {
     switch (filter) {
@@ -867,4 +849,63 @@ export function resize(src, src_width, src_height, dst_width, dst_height, filter
         case Filter.OMOMS11I:
             return reconstruct_iconvolve(src, src_width, src_height, dst_width, dst_height, Filters.OMOMS11, 6.0, 5148314.024847966, Filters.LU_omoms11, 54, 6, true);
     }
+}
+
+/** Simple class abstrating a pool of Web Workers. */
+export class Resizer {
+    /**
+     * Create a resizer with a pool of Web Workers.
+     * @param {number} pool Number of Web Workers in pool. Defaults to 4.
+     */
+    constructor(pool = 4) {
+        this.workers = [];
+        this.locks = Array(pool).fill(false);
+        this.queue = [];
+        for (let i = 0; i < pool; i++)
+            this.workers.push(new Worker(import.meta.url, { type: "module" }));
+    }
+
+    /**
+     * Wrapper for `sample`, `scale`, `reconstruct`, and `reconstruct_iconvolve`. Compute is done in a Web Worker.
+     * @param {TypedArray} src Source image in a 4-channel format. Since the image is transferred to a Worker, it will become inaccessible. It is returned once the operation completes
+     * @param {number} src_width Source image width.
+     * @param {number} src_height Source image height.
+     * @param {number} dst_width Destination image width.
+     * @param {number} dst_height Destination image height.
+     * @param {Filter} filter Resizing method (filter) to be used. Defaults to Mitchell-Netravali.
+     * @returns {Promise<{src: TypedArray, dst: TypedArray | null}>} Destination image in a 4-channel format, or null if iconvolve error. Returns the same type as source image if `filter` is `NEAREST`, otherwise returns Float64Array.
+     */
+    resize(src, src_width, src_height, dst_width, dst_height, filter) {
+        return new Promise((resolve) => {
+            this.queue.push([[src, src_width, src_height, dst_width, dst_height, filter], resolve]);
+            this.#check();
+        });
+    }
+
+    #check() {
+        if (this.queue.length === 0)
+            return;
+        for (let i = 0; i < this.workers.length; i++) {
+            if (!this.locks[i]) {
+                const [args, resolve] = this.queue.shift();
+                this.locks[i] = true;
+                this.workers[i].onmessage = (event) => {
+                    this.locks[i] = false;
+                    this.#check();
+                    resolve(event.data);
+                };
+                this.workers[i].postMessage(args, [args[0].buffer]);
+                return;
+            }
+        }
+    }
+}
+
+// Code to be executed in a worker
+if (typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope) {
+    onmessage = (event) => {
+        const [src, src_width, src_height, dst_width, dst_height, filter] = event.data;
+        const dst = resize(src, src_width, src_height, dst_width, dst_height, filter);
+        postMessage({ src, dst }, dst?.buffer ? [src.buffer, dst.buffer] : [src.buffer]);
+    };
 }
