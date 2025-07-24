@@ -1,7 +1,7 @@
 // Copyright (c) 2024-2025 silverslither.
 
-#ifndef RESIZE_RESIZE
-#define RESIZE_RESIZE
+#ifndef VOIR_VOIR
+#define VOIR_VOIR
 
 #include <stdbool.h>
 #include <stddef.h>

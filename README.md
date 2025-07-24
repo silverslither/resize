@@ -1,15 +1,29 @@
-# resize
+# voir
 
-ok image resizing implementation.
+Image resizing implementation in both C99 and JS.
 
-general-purpose resampling filters ordered from softest (least halo) to sharpest (most halo): triangle, mitnet, catrom, bspline2i, hamming3, bspline3i, hamming4, omoms3i, omoms7i, hamming8, omoms11i.
+The following are general-purpose resampling filters ordered from softest (least halo) to sharpest (most halo):
+- triangle ("linear")
+- mitnet ("smooth cubic")
+- catrom ("sharp cubic")
+- bspline2i (similar to Magic Kernel Sharp 2021)
+- hamming3 (similar, but superior to Lanczos3)
+- bspline3i
+- hamming4
+- omoms3i
+- omoms7i
+- hamming8
+- omoms11i
 
-other filters: nearest (for pixel art), area (for mipmapping), hermite (for somewhat sharp but haloless downsampling), raw bsplines (for blurring).
+Other filters which are implemented:
+- nearest (for pixel art)
+- area (for "fair" resampling)
+- hermite (for somewhat sharp but haloless downsampling)
+- bspline2, bspline3 (for blurring)
 
-if you want lanczos, you don't want lanczos (it has terrible effects in both the time and frequency domain). use hamming instead.
+Note: You may have noticed that the above lists do not include the Lanczos filters. This is because it exhibits terrible effects in both the time and frequency domain. The Hamming filters are superior windowed-sinc alternatives.
 
-if you provide a smooth filter, the example programs will use an edge-directed halo minimization technique to acheive the same amount of halo as your smooth filter, while being just as sharp as the regular filter you pass in.
+The example programs (a CLI tool, and a simple website) show basic usage of the library. Documentation is available as comments, which should be picked up by your LSP (Doxygen for C, JSDoc for JS).
+The example programs also implement an edge-directed halo minimization technique to acheive the same amount of halo as a "smooth" filter, while being just as sharp as the primary filter.
 
-try it here: https://silverslither.github.io/resize/js/example
-
-TODO: write-up
+Try the JS example: https://silverslither.github.io/voir/js/example

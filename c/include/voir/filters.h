@@ -1,7 +1,7 @@
 // Copyright (c) 2024-2025 silverslither.
 
-#ifndef RESIZE_FILTERS
-#define RESIZE_FILTERS
+#ifndef VOIR_FILTERS
+#define VOIR_FILTERS
 
 double Triangle(double x);
 double Hermite(double x);

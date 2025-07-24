@@ -1,7 +1,7 @@
 // Copyright (c) 2024-2025 silverslither.
 
-import { Filter, convolve, resize } from "./resize.js";
-import { mul_alpha, div_alpha, srgb_encode, srgb_decode, get_sigmoidization_params, sigmoidal_contrast_increase, sigmoidal_contrast_decrease } from "./colour.js";
+import { Filter, convolve, resize } from "./voir/voir.js";
+import { mul_alpha, div_alpha, srgb_encode, srgb_decode, get_sigmoidization_params, sigmoidal_contrast_increase, sigmoidal_contrast_decrease } from "./voir/colour.js";
 
 let input, width, height, filterName, smoothFilterName, gradientFilterName, gmultiplier, rawGradientBox, linearizeBox, beta, submit, err;
 

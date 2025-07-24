@@ -1,8 +1,8 @@
 // Copyright (c) 2024-2025 silverslither.
 
 extern "C" {
-#include "colour.h"
-#include "resize.h"
+#include "include/voir/colour.h"
+#include "include/voir/voir.h"
 }
 
 #include <algorithm>
@@ -43,8 +43,8 @@ extern "C" {
 #define WUFFS_CONFIG__DST_PIXEL_FORMAT__ENABLE_ALLOWLIST
 #define WUFFS_CONFIG__DST_PIXEL_FORMAT__ALLOW_RGBA_NONPREMUL
 
-#include "include/fpng.h"
-#include "include/wuffs-v0.4.c"
+#include "include/fpng/fpng.h"
+#include "include/wuffs/wuffs-v0.4.c"
 
 typedef uint8_t u8;
 
@@ -264,7 +264,7 @@ double *haloMinimizedResize(const double *src, pdt src_width, pdt src_height, pd
 }
 
 int main(int argc, char **argv) {
-    assert(argc >= 5, "usage: resize <input> <width> <height> <output> [-f filter] [-h smooth_filter] [-e gradient_filter] [-m gradient_multiplier] [-r] [-l] [-s sigmoidization_contrast] [-v]\n");
+    assert(argc >= 5, "usage: voir <input> <width> <height> <output> [-f filter] [-h smooth_filter] [-e gradient_filter] [-m gradient_multiplier] [-r] [-l] [-s sigmoidization_contrast] [-v]\n");
 
     // default options
     Filter filter = DEFAULT;

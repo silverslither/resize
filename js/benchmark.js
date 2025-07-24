@@ -1,10 +1,10 @@
 // Copyright (c) 2024-2025 silverslither.
 
-import { Filter, Resizer } from "./resize.js";
+import { Filter, Voir } from "./voir/voir.js";
 const pica = window.pica();
-const resizer = new Resizer();
+const voir = new Voir();
 
-let input, width, height, picaFilter, resizeFilter, submit, err;
+let input, width, height, picaFilter, voirFilter, submit, err;
 let lock = false, start = NaN;
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -12,7 +12,7 @@ document.addEventListener("DOMContentLoaded", () => {
     width = document.getElementById("width");
     height = document.getElementById("height");
     picaFilter = document.getElementById("pica-filter");
-    resizeFilter = document.getElementById("resize-filter");
+    voirFilter = document.getElementById("voir-filter");
     submit = document.querySelector("button");
     err = document.getElementById("err");
     submit.addEventListener("click", listener);
@@ -59,8 +59,8 @@ async function main(file) {
     err.innerText += `pica: ${time()} ms\n`;
 
     time();
-    await resizer.resize(src.data, src.width, src.height, dst_width, dst_height, parseFilter(resizeFilter.value));
-    err.innerText += `resize: ${time()} ms\n`;
+    await voir.resize(src.data, src.width, src.height, dst_width, dst_height, parseFilter(voirFilter.value));
+    err.innerText += `voir: ${time()} ms\n`;
 }
 
 function time() {

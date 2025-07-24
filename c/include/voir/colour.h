@@ -1,5 +1,5 @@
-#ifndef RESIZE_COLOUR
-#define RESIZE_COLOUR
+#ifndef VOIR_COLOUR
+#define VOIR_COLOUR
 
 #include <stddef.h>
 

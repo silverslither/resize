@@ -852,7 +852,7 @@ export function resize(src, src_width, src_height, dst_width, dst_height, filter
 }
 
 /** Simple class abstrating a pool of Web Workers. */
-export class Resizer {
+export class Voir {
     /**
      * Create a resizer with a pool of Web Workers.
      * @param {number} pool Number of Web Workers in pool. Defaults to 4.

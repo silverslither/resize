@@ -1,5 +1,6 @@
-c/include/*
-c/build/*
+c/include/fpng
+c/include/wuffs
+c/bin/*
 js/node_modules/*
 js/*.json
 */*.png

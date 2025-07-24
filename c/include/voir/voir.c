@@ -1,6 +1,6 @@
 // Copyright (c) 2024-2025 silverslither.
 
-#include "resize.h"
+#include "voir.h"
 #include "filters.h"
 #include <math.h>
 #include <stdlib.h>
