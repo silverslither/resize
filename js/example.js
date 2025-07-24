@@ -1,7 +1,8 @@
 // Copyright (c) 2024-2025 silverslither.
 
-import { Filter, convolve, resize } from "./voir/voir.js";
 import { mul_alpha, div_alpha, srgb_encode, srgb_decode, get_sigmoidization_params, sigmoidal_contrast_increase, sigmoidal_contrast_decrease } from "./voir/colour.js";
+import { Filter, Voir } from "./voir/voir.js";
+const voir = new Voir();
 
 let input, width, height, filterName, smoothFilterName, gradientFilterName, gmultiplier, rawGradientBox, linearizeBox, beta, submit, err;
 
@@ -69,14 +70,14 @@ async function main(file) {
 
     let dst;
     if (rawGradient) {
-        const temp = resize(src.data, src.width, src.height, dst_width, dst_height, gradientFilter);
+        const { dst: temp } = await voir.resize(src.data, src.width, src.height, dst_width, dst_height, gradientFilter);
         const xmult = gradientMultiplier * Math.max(dst_width / src.width, 1.0);
         const ymult = gradientMultiplier * Math.max(dst_height / src.height, 1.0);
-        dst = gradientMagnitude(temp, dst_width, dst_height, xmult, ymult, false);
+        ({ dst } = await gradientMagnitude(temp, dst_width, dst_height, xmult, ymult, false));
     } else if (haloMinimize) {
-        dst = haloMinimizedResize(src.data, src.width, src.height, dst_width, dst_height, filter, smoothFilter, gradientFilter, gradientMultiplier);
+        ({ dst } = await haloMinimizedResize(src.data, src.width, src.height, dst_width, dst_height, filter, smoothFilter, gradientFilter, gradientMultiplier));
     } else {
-        dst = resize(src.data, src.width, src.height, dst_width, dst_height, filter);
+        ({ dst } = await voir.resize(src.data, src.width, src.height, dst_width, dst_height, filter));
     }
 
     div_alpha(dst);
@@ -174,20 +175,22 @@ function parseGradientMultiplier(str) {
     return mult;
 }
 
-function haloMinimizedResize(src, src_width, src_height, dst_width, dst_height, sharpFilter, smoothFilter, gradientFilter, multiplier) {
-    const sharp = resize(src, src_width, src_height, dst_width, dst_height, sharpFilter);
-    const smooth = resize(src, src_width, src_height, dst_width, dst_height, smoothFilter);
+async function haloMinimizedResize(src, src_width, src_height, dst_width, dst_height, sharpFilter, smoothFilter, gradientFilter, multiplier) {
+    let sharp, smooth;
+    ({ src, dst: sharp } = await voir.resize(src, src_width, src_height, dst_width, dst_height, sharpFilter));
+    ({ src, dst: smooth } = await voir.resize(src, src_width, src_height, dst_width, dst_height, smoothFilter));
 
     const xmult = Math.max(dst_width / src_width, 1.0);
     const ymult = Math.max(dst_height / src_height, 1.0);
     let gradient;
-    if (gradientFilter == sharpFilter) {
-        gradient = gradientMagnitude(sharp, dst_width, dst_height, xmult, ymult);
-    } else if (gradientFilter == smoothFilter) {
-        gradient = gradientMagnitude(smooth, dst_width, dst_height, xmult, ymult);
+    if (gradientFilter === sharpFilter) {
+        ({ src: sharp, dst: gradient } = await gradientMagnitude(sharp, dst_width, dst_height, xmult, ymult));
+    } else if (gradientFilter === smoothFilter) {
+        ({ src: smooth, dst: gradient } = await gradientMagnitude(smooth, dst_width, dst_height, xmult, ymult));
     } else {
-        const temp = resize(src, src_width, src_height, dst_width, dst_height, gradientFilter);
-        gradient = gradientMagnitude(temp, dst_width, dst_height, xmult, ymult);
+        let temp;
+        ({ src, dst: temp } = await voir.resize(src, src_width, src_height, dst_width, dst_height, gradientFilter));
+        ({ dst: gradient } = await gradientMagnitude(temp, dst_width, dst_height, xmult, ymult));
     }
 
     const length = dst_width * dst_height << 2;
@@ -196,14 +199,15 @@ function haloMinimizedResize(src, src_width, src_height, dst_width, dst_height, 
         gradient[i] = c * sharp[i] + (1.0 - c) * smooth[i];
     }
 
-    return gradient;
+    return { src, dst: gradient };
 }
 
-function gradientMagnitude(src, width, height, xmult, ymult, alpha = true) {
+async function gradientMagnitude(src, width, height, xmult, ymult, alpha = true) {
     const CDiffKernel = new Float64Array([0.5, 0, -0.5]);
 
-    const Gx = convolve(src, width, height, CDiffKernel, null, 3, 3, 0.0, 0.0);
-    const Gy = convolve(src, width, height, null, CDiffKernel, 3, 3, 0.0, 0.0);
+    let Gx, Gy;
+    ({ src, dst: Gx } = await voir.convolve(src, width, height, CDiffKernel, null, 3, 3, 0.0, 0.0));
+    ({ src, dst: Gy } = await voir.convolve(src, width, height, null, CDiffKernel, 3, 3, 0.0, 0.0));
 
     xmult *= xmult;
     ymult *= ymult;
@@ -221,7 +225,7 @@ function gradientMagnitude(src, width, height, xmult, ymult, alpha = true) {
         }
     }
 
-    return Gx;
+    return { src, dst: Gx };
 }
 
 function decode(file) {

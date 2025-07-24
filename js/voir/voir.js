@@ -854,7 +854,7 @@ export function resize(src, src_width, src_height, dst_width, dst_height, filter
 /** Simple class abstrating a pool of Web Workers. */
 export class Voir {
     /**
-     * Create a resizer with a pool of Web Workers.
+     * Create a multithreaded image processor.
      * @param {number} pool Number of Web Workers in pool. Defaults to 4.
      */
     constructor(pool = 4) {
@@ -866,8 +866,28 @@ export class Voir {
     }
 
     /**
+     * Convolve an image with a horizontal and vertical kernel. Compute is done in a Web Worker.
+     * @param {TypedArray} src Source image in a 4-channel format. Since the image is transferred to a Worker, it will become inaccessible. It is returned once the operation completes.
+     * @param {number} width Image width.
+     * @param {number} height Image height.
+     * @param {Float64Array | null} h_kernel Horizontal kernel, or null if no horizontal convolution is desired.
+     * @param {Float64Array | null} v_kernel Vertical kernel, or null if no vertical convolution is desired.
+     * @param {number} h_support Support window for the horizontal kernel. Must be an odd number.
+     * @param {number} v_support Support window for the vertical kernel. Must be an odd number.
+     * @param {number} h_norm Normalization constant for the horizontal kernel.
+     * @param {number} v_norm Normalization constant for the vertical kernel.
+     * @returns {Promise<{src: TypedArray, dst: Float64Array}>} Destination image in a 4-channel format.
+     */
+    convolve(src, width, height, h_kernel, v_kernel, h_support, v_support, h_norm, v_norm) {
+        return new Promise((resolve) => {
+            this.queue.push([[src, width, height, h_kernel, v_kernel, h_support, v_support, h_norm, v_norm], resolve]);
+            this.#check();
+        });
+    }
+
+    /**
      * Wrapper for `sample`, `scale`, `reconstruct`, and `reconstruct_iconvolve`. Compute is done in a Web Worker.
-     * @param {TypedArray} src Source image in a 4-channel format. Since the image is transferred to a Worker, it will become inaccessible. It is returned once the operation completes
+     * @param {TypedArray} src Source image in a 4-channel format. Since the image is transferred to a Worker, it will become inaccessible. It is returned once the operation completes.
      * @param {number} src_width Source image width.
      * @param {number} src_height Source image height.
      * @param {number} dst_width Destination image width.
@@ -904,8 +924,8 @@ export class Voir {
 // Code to be executed in a worker
 if (typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope) {
     onmessage = (event) => {
-        const [src, src_width, src_height, dst_width, dst_height, filter] = event.data;
-        const dst = resize(src, src_width, src_height, dst_width, dst_height, filter);
+        const src = event.data[0];
+        const dst = event.data.length === 6 ? resize(...event.data) : convolve(...event.data);
         postMessage({ src, dst }, dst?.buffer ? [src.buffer, dst.buffer] : [src.buffer]);
     };
 }

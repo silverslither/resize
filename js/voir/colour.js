@@ -1,3 +1,5 @@
+// Copyright (c) 2024-2025 silverslither.
+
 export function mul_alpha(arr) {
     for (let i = 0; i < arr.length; i += 4) {
         arr[i + 0] *= arr[i + 3];

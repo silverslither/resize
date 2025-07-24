@@ -59,8 +59,8 @@ double *scale(const double *src, pdt src_width, pdt src_height, pdt dst_width, p
  * \param v_kernel Vertical kernel, or null pointer if no vertical convolution is desired.
  * \param h_support Support window for the horizontal kernel. Must be an odd number.
  * \param v_support Support window for the vertical kernel. Must be an odd number.
- * \param h_support Normalization constant for the horizontal kernel.
- * \param v_support Normalization constant for the vertical kernel.
+ * \param h_norm Normalization constant for the horizontal kernel.
+ * \param v_norm Normalization constant for the vertical kernel.
  * \return Destination image in a 4-channel format, or null pointer if OOM.
  */
 double *convolve(const double *src, pdt width, pdt height, const double *h_kernel, const double *v_kernel, pdt h_support, pdt v_support, double h_norm, double v_norm);
