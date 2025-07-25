@@ -40,62 +40,25 @@ double CatRom(double x) {
     return 2.0 - x * (4.0 - x * (2.5 - 0.5 * x));
 }
 
-static inline double hsin(double x) {
-    const double x2 = x * x;
-    double v = 1.6338022763241866 - 0.7211254631780478 * x2;
-    v = 1.0 - v * x2;
-    return x * v;
-}
-
-static inline double hcos3w(double x) {
-    const double x2 = x * x;
-    double v = 0.023077941650754795 - 0.0007869230084260478 * x2;
-    v = 0.25311490431737477 - v * x2;
-    return 0.46164 - v * x2;
-}
 double Hamming3(double x) {
-    if (x < 7.450580596923828e-9)
+    if (x < 5e-9)
         return 1.0;
-    const int round_x = (int)(x + 0.5);
-    const double dist_x = x - (double)round_x;
-    const uint64_t poly_x_ = ((uint64_t)round_x << 63) ^ *(const uint64_t *)&dist_x;
-    const double poly_x = *(const double *)&poly_x_;
-    const double w = copysign(hcos3w(x > 1.5 ? x - 3.0 : x), 1.5 - x);
-    return hsin(poly_x) * (0.53836 + w) / x;
+    const double x_ = 3.141592653589793 * x;
+    return (0.5383554 + 0.4616446 * cos(1.0471975511965979 * x)) * sin(x_) / x_;
 }
 
-static inline double hcos4w(double x) {
-    const double x2 = x * x;
-    double v = 0.007302004975434134 - 0.00014005538895082734 * x2;
-    v = 0.1423771336785233 - v * x2;
-    return 0.46164 - v * x2;
-}
 double Hamming4(double x) {
-    if (x < 7.450580596923828e-9)
+    if (x < 5e-9)
         return 1.0;
-    const int round_x = (int)(x + 0.5);
-    const double dist_x = x - (double)round_x;
-    const uint64_t poly_x_ = ((uint64_t)round_x << 63) ^ *(const uint64_t *)&dist_x;
-    const double poly_x = *(const double *)&poly_x_;
-    const double w = copysign(hcos4w(x > 2.0 ? x - 4.0 : x), 2.0 - x);
-    return hsin(poly_x) * (0.53836 + w) / x;
+    const double x_ = 3.141592653589793 * x;
+    return (0.5383554 + 0.4616446 * cos(0.7853981633974483 * x)) * sin(x_) / x_;
 }
 
-static inline double hcos8w(double x) {
-    const double x2 = x * x;
-    double v = 0.0004563753109646334 - 0.0000021883654523566772 * x2;
-    v = 0.03559428341963083 - v * x2;
-    return 0.46164 - v * x2;
-}
 double Hamming8(double x) {
-    if (x < 7.450580596923828e-9)
+    if (x < 5e-9)
         return 1.0;
-    const int round_x = (int)(x + 0.5);
-    const double dist_x = x - (double)round_x;
-    const uint64_t poly_x_ = ((uint64_t)round_x << 63) ^ *(const uint64_t *)&dist_x;
-    const double poly_x = *(const double *)&poly_x_;
-    const double w = copysign(hcos8w(x > 4.0 ? x - 8.0 : x), 4.0 - x);
-    return hsin(poly_x) * (0.53836 + w) / x;
+    const double x_ = 3.141592653589793 * x;
+    return (0.5383554 + 0.46164461 * cos(0.39269908169872414 * x)) * sin(x_) / x_;
 }
 
 // Normalized to 5.25

@@ -36,62 +36,25 @@ export const CatRom = (x) => {
     return 2.0 - x * (4.0 - x * (2.5 - 0.5 * x));
 };
 
-const hsin = (x) => {
-    const x2 = x * x;
-    let v = 1.6338022763241866 - 0.7211254631780478 * x2;
-    v = 1.0 - v * x2;
-    return v * x;
-};
-
-const hcos3w = (x) => {
-    const x2 = x * x;
-    let v = 0.023077941650754795 - 0.0007869230084260478 * x2;
-    v = 0.25311490431737477 - v * x2;
-    return 0.46164 - v * x2;
-};
 export const Hamming3 = (x) => {
-    if (x < 7.450580596923828e-9)
+    if (x < 5e-9)
         return 1.0;
-    const round_x = Math.round(x);
-    const sign = (round_x << 31 >> 31) | 1;
-    const poly_x = sign * (x - round_x);
-    const flip = x > 1.5;
-    const w = hcos3w(flip ? x - 3.0 : x);
-    return hsin(poly_x) * (0.53836 + (flip ? -w : w)) / x;
+    const x_ = 3.141592653589793 * x;
+    return (0.5383554 + 0.4616446 * Math.cos(1.0471975511965979 * x)) * Math.sin(x_) / x_;
 };
 
-const hcos4w = (x) => {
-    const x2 = x * x;
-    let v = 0.007302004975434134 - 0.00014005538895082734 * x2;
-    v = 0.1423771336785233 - v * x2;
-    return 0.46164 - v * x2;
-};
 export const Hamming4 = (x) => {
-    if (x < 7.450580596923828e-9)
+    if (x < 5e-9)
         return 1.0;
-    const round_x = Math.round(x);
-    const sign = (round_x << 31 >> 31) | 1;
-    const poly_x = sign * (x - round_x);
-    const flip = x > 2.0;
-    const w = hcos4w(flip ? x - 4.0 : x);
-    return hsin(poly_x) * (0.53836 + (flip ? -w : w)) / x;
+    const x_ = 3.141592653589793 * x;
+    return (0.5383554 + 0.4616446 * Math.cos(0.7853981633974483 * x)) * Math.sin(x_) / x_;
 };
 
-const hcos8w = (x) => {
-    const x2 = x * x;
-    let v = 0.0004563753109646334 - 0.0000021883654523566772 * x2;
-    v = 0.03559428341963083 - v * x2;
-    return 0.46164 - v * x2;
-};
 export const Hamming8 = (x) => {
-    if (x < 7.450580596923828e-9)
+    if (x < 5e-9)
         return 1.0;
-    const round_x = Math.round(x);
-    const sign = (round_x << 31 >> 31) | 1;
-    const poly_x = sign * (x - round_x);
-    const flip = x > 4.0;
-    const w = hcos8w(flip ? x - 8.0 : x);
-    return hsin(poly_x) * (0.53836 + (flip ? -w : w)) / x;
+    const x_ = 3.141592653589793 * x;
+    return (0.5383554 + 0.4616446 * Math.cos(0.39269908169872414 * x)) * Math.sin(x_) / x_;
 };
 
 // Normalized to 5.25
